@@ -1,0 +1,6 @@
+# STM32CubeIDE build output
+Debug/
+
+# macOS only
+.DS_Store
+.osx.project
