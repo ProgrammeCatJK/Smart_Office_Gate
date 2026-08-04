@@ -71,10 +71,14 @@ void Error_Handler(void);
 #define SW2_GPIO_Port GPIOA
 #define LD2_Pin GPIO_PIN_5
 #define LD2_GPIO_Port GPIOA
+#define LDR1_Pin GPIO_PIN_4
+#define LDR1_GPIO_Port GPIOC
 #define COILA_Pin GPIO_PIN_5
 #define COILA_GPIO_Port GPIOC
 #define SW3_Pin GPIO_PIN_0
 #define SW3_GPIO_Port GPIOB
+#define LDR2_Pin GPIO_PIN_1
+#define LDR2_GPIO_Port GPIOB
 #define COILD_Pin GPIO_PIN_2
 #define COILD_GPIO_Port GPIOB
 #define COILC_Pin GPIO_PIN_7
