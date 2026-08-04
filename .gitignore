@@ -1,5 +1,17 @@
 # STM32CubeIDE build output
+.settings/
+.project
+.cproject
+*.launch
+
 Debug/
+Release/
+*.o
+*.d
+*.elf
+*.hex
+*.bin
+*.map
 
 # macOS only
 .DS_Store

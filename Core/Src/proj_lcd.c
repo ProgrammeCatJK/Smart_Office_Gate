@@ -6,16 +6,11 @@
  */
 
 
-#include "lcd.h"
+#include "proj_lcd.h"
 
 // Write less significant nibble in `byte` to LCD
 void LCD_put_nibble(uint8_t byte) {
 // Write most significant bit first
-//    HAL_GPIO_WritePin(LCD_DB7_GPIO_Port, LCD_DB7_Pin, (byte & 0x8) ? 1 : 0);
-//    HAL_GPIO_WritePin(LCD_DB6_GPIO_Port, LCD_DB6_Pin, (byte & 0x4) ? 1 : 0);
-//    HAL_GPIO_WritePin(LCD_DB5_GPIO_Port, LCD_DB5_Pin, (byte & 0x2) ? 1 : 0);
-//    HAL_GPIO_WritePin(LCD_DB4_GPIO_Port, LCD_DB4_Pin, (byte & 0x1) ? 1 : 0);
-
     HAL_GPIO_WritePin(LCD_D4_GPIO_Port, LCD_D4_Pin, (byte & 0x1) ? 1 : 0);
     HAL_GPIO_WritePin(LCD_D5_GPIO_Port, LCD_D5_Pin, (byte & 0x2) ? 1 : 0);
     HAL_GPIO_WritePin(LCD_D6_GPIO_Port, LCD_D6_Pin, (byte & 0x4) ? 1 : 0);
