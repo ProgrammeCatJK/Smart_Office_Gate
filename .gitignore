@@ -4,3 +4,4 @@ Debug/
 # macOS only
 .DS_Store
 .osx.project
+.settings/language.settings.xml
