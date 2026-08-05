@@ -24,6 +24,11 @@
 #include "motor.h"
 #include "ldr.h"
 #include <stdio.h>
+
+#include "proj_keypad.h"
+#include "proj_lcd.h"
+#include "proj_events.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -116,6 +121,21 @@ int main(void)
   Motor_Reset();
   HAL_TIM_Base_Start_IT(&htim2);
   /*==============================================*/
+  // LCD init
+  LCD_init();
+
+
+	// Event scheduler initialiser
+	Event *head;
+	Event *curr;
+
+	EventInit(&head);
+	curr = NULL;
+
+	LCD_send_cmd(LCD_CLEAR);
+	LCD_send_cmd(0x80);
+	LCD_send_string("Input time:");
+	SetStartTime();
 
   /* USER CODE END 2 */
 
@@ -157,6 +177,13 @@ int main(void)
 	    HAL_Delay(12);
 	    Motor_Stop();
 	  }
+
+	  /*==============================================*/
+	  // Display management menu
+	  /*==============================================*/
+	  DisplayScreen(curr);
+	  ReadKeypad(&head, &curr);
+	  CheckEvents(&head, &curr);
 
     /* USER CODE END WHILE */
 
