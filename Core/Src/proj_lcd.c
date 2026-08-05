@@ -6,7 +6,7 @@
  */
 
 
-#include "lcd.h"
+#include "proj_lcd.h"
 
 // Write less significant nibble in `byte` to LCD
 void LCD_put_nibble(uint8_t byte) {
