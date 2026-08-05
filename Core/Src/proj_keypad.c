@@ -6,7 +6,7 @@
  */
 
 
-#include "keypad.h"
+#include "proj_keypad.h"
 
 // Row pins (Outputs)
 GPIO_TypeDef* ROW_PORT[4] = {GPIOB, GPIOB, GPIOB, GPIOB};
