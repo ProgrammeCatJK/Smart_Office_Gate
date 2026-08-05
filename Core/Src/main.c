@@ -123,7 +123,6 @@ int main(void)
 	  uint16_t LDR2_val = Read_LDR_PB1_LDR2();
 
 	  printf("LDR 1: %d | LDR 2: %d\r\n", LDR1_val, LDR2_val); // Print in Mac Terminal --> Baud Rate: 115200
-
 	  // using LDR as a motion sensor
 	  // Case1: Entrance to Exit
 	  // State: Door Already Open in direction of entry
