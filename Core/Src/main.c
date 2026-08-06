@@ -57,7 +57,9 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+bool authorised = true;
+uint32_t authTime;
+bool updateLCD = true;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -182,8 +184,27 @@ int main(void)
 	  /*==============================================*/
 	  // Display management menu
 	  /*==============================================*/
-	  DisplayScreen(curr);
-	  ReadKeypad(&head, &curr);
+	  if (authorised == true) {
+		  if (updateLCD) {
+		          DisplayScreen(curr);
+		          updateLCD = false;
+		      }
+	      ReadKeypad(&head, &curr);
+	  }
+
+	  if ((HAL_GetTick() - authTime) > 60000) {
+		  if (updateLCD) {
+		      authorised = false;
+		      LCD_send_cmd(LCD_CLEAR);
+		      LCD_send_cmd(0x80);
+		      LCD_send_string("AuthTimeout");
+		      HAL_Delay(500);
+	//	      LCD_send_cmd(LCD_CLEAR);
+		      updateLCD = false;
+		  }
+	  }
+
+	  // Check events every loop
 	  CheckEvents(&head, &curr);
 
     /* USER CODE END WHILE */

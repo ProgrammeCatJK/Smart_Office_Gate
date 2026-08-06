@@ -14,6 +14,9 @@
 
 #include "main.h"
 #include <stdio.h>
+#include "stdbool.h"
+
+extern bool updateLCD;
 
 void LCD_put_nibble(uint8_t byte);
 

@@ -24,18 +24,37 @@ typedef struct
 typedef struct Event
 {
     Time start;
-    int state;
+//    int state;
+    uint32_t duration;
+    bool startEvent;
 
     struct Event *next;
     struct Event *prev;
 
 } Event;
 
+
+#define PREV_BUTTON '1'
+#define NEXT_BUTTON '3'
+#define ADD_BUTTON 'A'
+#define DOOR_BUTTON 'B'
+#define EXIT_BUTTON 'C'
+#define DEL_BUTTON 'D'
+#define CONFIRM '#'
+#define LOCKED 1
+#define UNLOCKED 0
+
+static Time startTime = {1,1,0,0,0};
+static uint32_t startTick = 0;
+static int activeEvents = 0;\
+extern bool authorised;
+extern uint32_t authTime;
+
 // Creates a sorted doubly linked list
 void EventInit(Event **head);
 
 // Takes in the time for an event and inserts into a sorted linked list
-int AddEvent(Event **head, Time time, int state);
+int AddEvent(Event **head, Time time, uint32_t duration, bool startEvent);
 
 // Deletes the event currently
 void DeleteEvent(Event **head, Event **curr);
@@ -46,6 +65,8 @@ void ReadKeypad(Event **head, Event **curr);
 bool GetTimeFromKeypad(Time *time);
 
 bool GetDateFromKeypad(Time *time);
+
+uint32_t GetDurationFromKeypad(void);
 
 int GetStateFromKeypad();
 
@@ -64,5 +85,7 @@ void DisplayTime(Time time);
 int CompareTime(Time a, Time b);
 
 void SetStartTime(void);
+
+Time AddSeconds(Time start, uint32_t seconds);
 
 #endif /* INC_PROJ_EVENTS_H_ */

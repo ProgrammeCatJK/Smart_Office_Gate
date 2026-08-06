@@ -21,26 +21,13 @@ typedef struct Event
 #include "proj_lcd.h"
 #include "proj_keypad.h"
 
-#define PREV_BUTTON '1'
-#define NEXT_BUTTON '3'
-#define ADD_BUTTON 'A'
-#define DOOR_BUTTON 'B'
-#define EXIT_BUTTON 'C'
-#define DEL_BUTTON 'D'
-#define CONFIRM '#'
-#define LOCKED 1
-#define UNLOCKED 0
-
-static Time startTime = {1,1,0,0,0};
-static uint32_t startTick = 0;
-
 // Creates a sorted doubly linked list
 void EventInit(Event **head) {
 	*head = NULL;
 }
 
 // Takes in the time for an event and inserts into a sorted linked list
-int AddEvent(Event **head, Time time, int state) {
+int AddEvent(Event **head, Time time, uint32_t duration, bool startEvent) {
     // Allocate memory
     Event *newEvent = malloc(sizeof(Event));
     if (!newEvent) {
@@ -48,7 +35,9 @@ int AddEvent(Event **head, Time time, int state) {
     }
 
     newEvent->start = time;
-    newEvent->state = state;
+    newEvent->duration = duration;
+    newEvent->startEvent = startEvent;
+//    newEvent->state = state;
     newEvent->next = NULL;
     newEvent->prev = NULL;
 
@@ -70,7 +59,7 @@ int AddEvent(Event **head, Time time, int state) {
 
     // Find insertion point
     while (curr->next &&
-           CompareTime(curr->next->start, time) < 0) {
+           CompareTime(curr->next->start, time) <= 0) {
         curr = curr->next;
     }
 
@@ -126,12 +115,12 @@ void ReadKeypad(Event **head, Event **curr) {
 		if (button == NEXT_BUTTON) {
 			if (*curr != NULL && (*curr)->next != NULL) {
 				*curr = (*curr)->next;
-				DisplayScreen(*curr);
+				updateLCD = true;
 			}
 		} else if (button == PREV_BUTTON) {
 			if (*curr != NULL && (*curr)->prev != NULL) {
 				*curr = (*curr)->prev;
-				DisplayScreen(*curr);
+				updateLCD = true;
 			}
 		} else if (button == DEL_BUTTON) {
 			LCD_send_cmd(LCD_CLEAR);
@@ -141,51 +130,68 @@ void ReadKeypad(Event **head, Event **curr) {
 				LCD_send_cmd(LCD_CLEAR);
 				LCD_send_cmd(0x80);
 				LCD_send_string("No events to del");
-
 			} else {
 				DeleteEvent(head, curr);
 			}
+			updateLCD = true;
 			HAL_Delay(500);
-			DisplayScreen(*head);
+
+			return;
 		} else if (button == ADD_BUTTON) {
 			Time eventTime;
-			int state;
+			Time endTime;
+			uint32_t duration;
 			LCD_send_cmd(LCD_CLEAR);
 			LCD_send_cmd(0x80);
 			LCD_send_string("Add Event");
 			LCD_send_cmd(0xC0);
 			LCD_send_string("Enter date:");
 			if (!GetDateFromKeypad(&eventTime)) {
+				updateLCD = true;
 			    return;
 			}
 
 			LCD_send_cmd(LCD_CLEAR);
 			LCD_send_cmd(0x80);
 			LCD_send_string("Enter time:");
-
-			if (GetTimeFromKeypad(&eventTime) && (state = GetStateFromKeypad()) >= 0) {
-
-				// add in date/time config
-				AddEvent(head, eventTime, state);
-
-				// Display first item in list
-				*curr = *head;
-			} else {
-				// user cancelled
+			if (!GetTimeFromKeypad(&eventTime)) {
+				updateLCD = true;
 				return;
 			}
-			// If adding the first event, select it
-			if (*curr == NULL) {
-				*curr = *head;
+
+			LCD_send_cmd(LCD_CLEAR);
+			LCD_send_cmd(0x80);
+			LCD_send_string("Enter duration:");
+			duration = GetDurationFromKeypad();
+			if (duration == 0) {
+				updateLCD = true;
+			    return;
 			}
+
+			// add in start and end
+			AddEvent(head, eventTime, duration, true);
+
+			endTime = AddSeconds(eventTime, duration);
+			AddEvent(head, endTime, 0, false);
+
+			// Display first item in list
+			*curr = *head;
+			updateLCD = true;
+
 			return;
 		} else if (button == DOOR_BUTTON) {
+			updateLCD = true;
+			authorised = false;
+			authTime = HAL_GetTick();
 			LCD_send_cmd(LCD_CLEAR);
 			LCD_send_cmd(0x80);
 			LCD_send_string("Opening door");
 			HAL_Delay(500);
 			return;
 		} else if (button == EXIT_BUTTON) {
+			authorised = false;
+			updateLCD = true;
+			authTime = HAL_GetTick();
 			LCD_send_cmd(LCD_CLEAR);
 			LCD_send_cmd(0x80);
 			LCD_send_string("Exiting menu");
@@ -337,6 +343,88 @@ int GetStateFromKeypad() {
 	}
 }
 
+uint32_t GetDurationFromKeypad(void)
+{
+    char digits[7] = "";
+    char buffer[16];
+    int index = 0;
+
+    while (1) {
+        char key = Keypad_GetKey();
+
+        if (key >= '0' && key <= '9') {
+
+            if (index < 6) {
+                digits[index++] = key;
+                digits[index] = '\0';
+
+                // Display as HH:MM:SS
+                if (index <= 2) {
+                    snprintf(buffer, sizeof(buffer), "%s", digits);
+                }
+                else if (index <= 4) {
+                    snprintf(buffer, sizeof(buffer), "%c%c:%s",
+                             digits[0], digits[1],
+                             &digits[2]);
+                }
+                else {
+                    snprintf(buffer, sizeof(buffer), "%c%c:%c%c:%s",
+                             digits[0], digits[1],
+                             digits[2], digits[3],
+                             &digits[4]);
+                }
+
+                LCD_send_cmd(0x80);
+                LCD_send_string("                ");
+                LCD_send_cmd(0x80);
+                LCD_send_string(buffer);
+
+                LCD_send_cmd(0xC0);
+                LCD_send_string("# to confirm");
+            }
+        }
+
+        else if (key == CONFIRM) {
+
+            // Need exactly HHMMSS
+            if (index != 6)
+                continue;
+
+            uint32_t hours =
+                (digits[0] - '0') * 10 +
+                (digits[1] - '0');
+
+            uint32_t minutes =
+                (digits[2] - '0') * 10 +
+                (digits[3] - '0');
+
+            uint32_t seconds =
+                (digits[4] - '0') * 10 +
+                (digits[5] - '0');
+
+
+            // Validate duration
+            if (hours > 23 || minutes > 59 || seconds > 59) {
+
+                LCD_send_cmd(LCD_CLEAR);
+                LCD_send_cmd(0x80);
+                LCD_send_string("Invalid Duration");
+                HAL_Delay(1000);
+
+                continue;
+            }
+
+            return (hours * 3600UL) +
+                   (minutes * 60UL) +
+                   seconds;
+        }
+
+        else if (key == '*') {
+            return 0;
+        }
+    }
+}
+
 void DisplayScreen(Event *curr) {
 //    char buffer[17];
 
@@ -352,10 +440,10 @@ void DisplayScreen(Event *curr) {
 
         LCD_send_cmd(0xC0);    // Second line
 
-        if (curr->state == LOCKED) {
-            LCD_send_string("LOCK DOOR");
+        if (curr->startEvent) {
+            LCD_send_string("UNLOCK START");
         } else {
-            LCD_send_string("UNLOCK DOOR");
+            LCD_send_string("LOCK END");
         }
     }
 }
@@ -366,9 +454,7 @@ void CheckEvents(Event **head, Event **curr)
 //    Time currentTime = GetCurrentTime();
 	uint32_t elapsedSeconds = (HAL_GetTick() - startTick) / 1000;
 
-	Time currentTime = SecondsToHMS(
-		HMSToSeconds(startTime) + elapsedSeconds
-	);
+	Time currentTime = AddSeconds(startTime, elapsedSeconds);
 
     while (*head != NULL &&
            CompareTime(currentTime, (*head)->start) >= 0)
@@ -376,15 +462,19 @@ void CheckEvents(Event **head, Event **curr)
         Event *temp = *head;
 
         // Perform event action
-        if (temp->state == LOCKED) {
-            // Lock door
-        } else {
-            // Unlock door
-        }
+        if (temp->startEvent) {
+            activeEvents++;
 
-        // Keep current pointer valid
-        if (*curr == temp) {
-            *curr = temp->next;
+            if (activeEvents >= 1) {
+                // Unlock door
+            }
+        }
+        else {
+            activeEvents--;
+
+            if (activeEvents == 0) {
+                // Lock door
+            }
         }
 
         // Remove event from list
@@ -393,6 +483,9 @@ void CheckEvents(Event **head, Event **curr)
         if (*head != NULL) {
             (*head)->prev = NULL;
         }
+
+        // Keep current pointer valid
+        *curr = *head;
 
         free(temp);
     }
@@ -413,9 +506,7 @@ uint32_t HMSToSeconds(Time time)
 // Converts seconds into HHMMSS format
 Time SecondsToHMS(uint32_t seconds)
 {
-    Time time;
-
-    seconds %= 86400;
+    Time time = startTime;
 
     time.hour = seconds / 3600;
     seconds %= 3600;
@@ -504,3 +595,78 @@ void SetStartTime(void) {
 	HAL_Delay(1000);
 }
 
+Time AddSeconds(Time start, uint32_t seconds)
+{
+    Time end = start;
+
+    uint8_t daysInMonth[] = {
+        0,
+        31, // Jan
+        28, // Feb
+        31, // Mar
+        30, // Apr
+        31, // May
+        30, // Jun
+        31, // Jul
+        31, // Aug
+        30, // Sep
+        31, // Oct
+        30, // Nov
+        31  // Dec
+    };
+
+
+    // Add seconds
+    end.second += seconds % 60;
+    seconds /= 60;
+
+
+    // Carry seconds -> minutes
+    if (end.second >= 60) {
+        end.second -= 60;
+        seconds++;
+    }
+
+
+    // Add minutes
+    end.minute += seconds % 60;
+    seconds /= 60;
+
+
+    // Carry minutes -> hours
+    if (end.minute >= 60) {
+        end.minute -= 60;
+        seconds++;
+    }
+
+
+    // Add hours
+    end.hour += seconds % 24;
+    seconds /= 24;
+
+
+    // Carry hours -> days
+    if (end.hour >= 24) {
+        end.hour -= 24;
+        seconds++;
+    }
+
+
+    // Add remaining days
+    while (seconds > 0) {
+
+        end.day++;
+        seconds--;
+
+        if (end.day > daysInMonth[end.month]) {
+
+            end.day = 1;
+            end.month++;
+
+            if (end.month > 12) {
+                end.month = 1;
+            }
+        }
+    }
+    return end;
+}
