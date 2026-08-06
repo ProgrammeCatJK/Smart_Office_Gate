@@ -145,19 +145,24 @@ int main(void)
 	LCD_send_cmd(LCD_CLEAR);
 	LCD_send_cmd(0x80);
 	LCD_send_string("Initialising");
-	HAL_Delay(1000);
+	HAL_Delay(500);
 	SetStartTime();
+	HAL_Delay(500);
+
 
 	  // RFID init
 	printf("BEFORE PN532\r\n");
 
-	if(!PN532_Init())
-	{
+	if(!PN532_Init()) {
+		LCD_send_string("PN532 error");
 		printf("PN532 ERROR\r\n");
 	    Error_Handler();
 	}
 
 	printf("AFTER PN532\r\n");
+
+	LCD_send_cmd(0x80);
+	LCD_send_string("Door functional");
 
   /* USER CODE END 2 */
 
@@ -221,6 +226,7 @@ int main(void)
 //		      }
 //	      ReadKeypad(&head, &curr);
 //	  }
+
 	  if (authorised) {
 //		  printf("authorised\r\n");
 	      if (authLevel == AUTH_MANAGER) {
@@ -229,10 +235,16 @@ int main(void)
 				  DisplayScreen(curr);
 				  updateLCD = false;
 			  }
+	    	  // Blocking function for events interface until exit is pressed
 	          ReadKeypad(&head, &curr);
+
+
 	      } else if (authLevel == AUTH_DOOR) {
 			  Motor_SetPosition(OPEN_ForEntrance);
 		      printf("open door\r\n");
+		      LCD_send_cmd(LCD_CLEAR);
+		      LCD_send_cmd(0x80);
+		      LCD_send_string("Door opening");
 
 		      doorOpen = true;
 		      doorOpenTime = HAL_GetTick();
@@ -242,11 +254,16 @@ int main(void)
 	      }
 	  }
 
+
+
 	  printf("doorOpen=%d activeEvents=%d\r\n", doorOpen, activeEvents);
 
 	  if (doorOpen && !scheduledOpen) {
 	      if ((HAL_GetTick() - doorOpenTime) > 5000) {
 	          Motor_SetPosition(CLOSE);
+	          LCD_send_cmd(LCD_CLEAR);
+	          LCD_send_cmd(0x80);
+	          LCD_send_string("Door closed");
 	          doorOpen = false;
 	      }
 	  }

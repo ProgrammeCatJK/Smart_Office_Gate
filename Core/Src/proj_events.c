@@ -195,7 +195,6 @@ void ReadKeypad(Event **head, Event **curr) {
 			doorOpen = true;
 		    doorOpenTime = HAL_GetTick();
 
-//			HAL_Delay(500);
 			return;
 		} else if (button == EXIT_BUTTON) {
 			authorised = false;
@@ -204,7 +203,8 @@ void ReadKeypad(Event **head, Event **curr) {
 			LCD_send_cmd(LCD_CLEAR);
 			LCD_send_cmd(0x80);
 			LCD_send_string("Exiting menu");
-			HAL_Delay(500);
+			HAL_Delay(500);\
+			LCD_send_cmd(LCD_CLEAR);
 			return;
 			// set flag for lcd/auth off
 		}
@@ -323,33 +323,6 @@ bool GetDateFromKeypad(Time *time) {
             return false;
         }
     }
-}
-
-int GetStateFromKeypad() {
-	int state = UNLOCKED;
-	LCD_send_cmd(LCD_CLEAR);
-	LCD_send_cmd(0x80);
-	LCD_send_string("Enter state:");
-	while (1) {
-		char key = Keypad_GetKey();
-		LCD_send_cmd(0xC0);
-//		char buffer[2];
-//		snprintf(buffer, sizeof(buffer), "%c", key);
-//		LCD_send_string(buffer);
-		if (key == '1') {
-			LCD_send_cmd(0xC0);
-			LCD_send_string("1: LOCK    ");
-			state = LOCKED;
-		} else if (key == '0') {
-			LCD_send_cmd(0xC0);
-			LCD_send_string("0: UNLOCK  ");
-			state = UNLOCKED;
-		} else if (key == CONFIRM) {
-			return state;
-		} else if (key == '*') {
-			return -1;
-		}
-	}
 }
 
 uint32_t GetDurationFromKeypad(void)

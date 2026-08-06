@@ -70,8 +70,6 @@ bool GetDateFromKeypad(Time *time);
 
 uint32_t GetDurationFromKeypad(void);
 
-int GetStateFromKeypad();
-
 void DisplayScreen(Event *curr);
 void CheckEvents(Event **head, Event **curr);
 
