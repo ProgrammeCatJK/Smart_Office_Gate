@@ -28,6 +28,7 @@
 #include "proj_keypad.h"
 #include "proj_lcd.h"
 #include "proj_events.h"
+#include "proj_auth.h"
 
 /* USER CODE END Includes */
 
@@ -57,9 +58,13 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-bool authorised = true;
+bool authorised = false;
 uint32_t authTime;
 bool updateLCD = true;
+
+bool doorOpen = false;
+uint32_t doorOpenTime;
+bool scheduledOpen = false;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -126,6 +131,9 @@ int main(void)
   // LCD init
   LCD_init();
 
+  	char test[] = "UART OK\r\n";
+  	HAL_UART_Transmit(&huart2, (uint8_t*)test, strlen(test), HAL_MAX_DELAY);
+
 
 	// Event scheduler initialiser
 	Event *head;
@@ -140,6 +148,17 @@ int main(void)
 	HAL_Delay(1000);
 	SetStartTime();
 
+	  // RFID init
+	printf("BEFORE PN532\r\n");
+
+	if(!PN532_Init())
+	{
+		printf("PN532 ERROR\r\n");
+	    Error_Handler();
+	}
+
+	printf("AFTER PN532\r\n");
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -149,12 +168,13 @@ int main(void)
 	  uint16_t LDR1_val = Read_LDR_PC4_LDR1();
 	  uint16_t LDR2_val = Read_LDR_PB1_LDR2();
 
-	  printf("LDR 1: %d | LDR 2: %d\r\n", LDR1_val, LDR2_val); // Print in Mac Terminal --> Baud Rate: 115200
+	  //printf("LDR 1: %d | LDR 2: %d\r\n", LDR1_val, LDR2_val); // Print in Mac Terminal --> Baud Rate: 115200
 	  // using LDR as a motion sensor
 	  // Case1: Entrance to Exit
 	  // State: Door Already Open in direction of entry
 	  // Trigger LDR1 then LDR2 (Setting)
 	  // Door Close
+	  HAL_Delay(500);
 
 	  // example --> But wrong logic (Close only both LDRs are covered)
 	  if (LDR1_val < 500) {
@@ -168,10 +188,11 @@ int main(void)
 	  /*==============================================*/
 	  // Change to NFC trigger Condition
 	  /*==============================================*/
-	  if (HAL_GPIO_ReadPin(GPIOA, SW2_Pin) == 1) {
-		  HAL_Delay(12);
-		  Motor_SetPosition(OPEN_ForEntrance);
-	  }
+//	  if (HAL_GPIO_ReadPin(GPIOA, SW2_Pin) == 1) {
+//		  HAL_Delay(12);
+//		  Motor_SetPosition(OPEN_ForEntrance);
+//	  }
+
 
 	  /*==============================================*/
 	  // Change to Motor Stopping Condition
@@ -182,26 +203,52 @@ int main(void)
 	  }
 
 	  /*==============================================*/
-	  // Display management menu
+	  // Authorisation check
 	  /*==============================================*/
-	  if (authorised == true) {
-		  if (updateLCD) {
-		          DisplayScreen(curr);
-		          updateLCD = false;
-		      }
-	      ReadKeypad(&head, &curr);
+	  if(!authorised) {
+		  NFC_Check();
+		  HAL_Delay(100);
 	  }
 
-	  if ((HAL_GetTick() - authTime) > 60000) {
-		  if (updateLCD) {
+	  /*==============================================*/
+	  // Display management menu
+	  /*==============================================*/
+	  // && authLevel == AUTH_MANAGER
+//	  if (authorised == true) {
+//		  if (updateLCD) {
+//		          DisplayScreen(curr);
+//		          updateLCD = false;
+//		      }
+//	      ReadKeypad(&head, &curr);
+//	  }
+	  if (authorised) {
+//		  printf("authorised\r\n");
+	      if (authLevel == AUTH_MANAGER) {
+//	    	  printf("open menu");
+	    	  if (updateLCD) {
+				  DisplayScreen(curr);
+				  updateLCD = false;
+			  }
+	          ReadKeypad(&head, &curr);
+	      } else if (authLevel == AUTH_DOOR) {
+			  Motor_SetPosition(OPEN_ForEntrance);
+		      printf("open door\r\n");
+
+		      doorOpen = true;
+		      doorOpenTime = HAL_GetTick();
+
 		      authorised = false;
-		      LCD_send_cmd(LCD_CLEAR);
-		      LCD_send_cmd(0x80);
-		      LCD_send_string("AuthTimeout");
-		      HAL_Delay(500);
-	//	      LCD_send_cmd(LCD_CLEAR);
-		      updateLCD = false;
-		  }
+		      authLevel = AUTH_NONE;
+	      }
+	  }
+
+	  printf("doorOpen=%d activeEvents=%d\r\n", doorOpen, activeEvents);
+
+	  if (doorOpen && !scheduledOpen) {
+	      if ((HAL_GetTick() - doorOpenTime) > 5000) {
+	          Motor_SetPosition(CLOSE);
+	          doorOpen = false;
+	      }
 	  }
 
 	  // Check events every loop

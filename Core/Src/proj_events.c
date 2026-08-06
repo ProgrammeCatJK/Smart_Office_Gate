@@ -20,6 +20,10 @@ typedef struct Event
 #include "proj_events.h"
 #include "proj_lcd.h"
 #include "proj_keypad.h"
+#include "motor.h"
+
+extern bool scheduledOpen;
+int activeEvents = 0;
 
 // Creates a sorted doubly linked list
 void EventInit(Event **head) {
@@ -115,12 +119,12 @@ void ReadKeypad(Event **head, Event **curr) {
 		if (button == NEXT_BUTTON) {
 			if (*curr != NULL && (*curr)->next != NULL) {
 				*curr = (*curr)->next;
-				updateLCD = true;
+				DisplayScreen(*curr);
 			}
 		} else if (button == PREV_BUTTON) {
 			if (*curr != NULL && (*curr)->prev != NULL) {
 				*curr = (*curr)->prev;
-				updateLCD = true;
+				DisplayScreen(*curr);
 			}
 		} else if (button == DEL_BUTTON) {
 			LCD_send_cmd(LCD_CLEAR);
@@ -186,7 +190,12 @@ void ReadKeypad(Event **head, Event **curr) {
 			LCD_send_cmd(LCD_CLEAR);
 			LCD_send_cmd(0x80);
 			LCD_send_string("Opening door");
-			HAL_Delay(500);
+
+			Motor_SetPosition(OPEN_ForEntrance);
+			doorOpen = true;
+		    doorOpenTime = HAL_GetTick();
+
+//			HAL_Delay(500);
 			return;
 		} else if (button == EXIT_BUTTON) {
 			authorised = false;
@@ -465,15 +474,19 @@ void CheckEvents(Event **head, Event **curr)
         if (temp->startEvent) {
             activeEvents++;
 
-            if (activeEvents >= 1) {
-                // Unlock door
+            if (activeEvents == 1) {
+                scheduledOpen = true;
+                Motor_SetPosition(OPEN_ForEntrance);
             }
-        }
-        else {
+        } else {
             activeEvents--;
 
             if (activeEvents == 0) {
-                // Lock door
+                scheduledOpen = false;
+
+                if (!doorOpen) {   // no manual open active
+                    Motor_SetPosition(CLOSE);
+                }
             }
         }
 

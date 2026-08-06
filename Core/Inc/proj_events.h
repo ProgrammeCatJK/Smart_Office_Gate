@@ -46,9 +46,11 @@ typedef struct Event
 
 static Time startTime = {1,1,0,0,0};
 static uint32_t startTick = 0;
-static int activeEvents = 0;\
+extern int activeEvents;
 extern bool authorised;
 extern uint32_t authTime;
+extern bool doorOpen;
+extern uint32_t doorOpenTime;
 
 // Creates a sorted doubly linked list
 void EventInit(Event **head);
