@@ -14,14 +14,16 @@
 
 typedef struct
 {
-    uint8_t hour;
+	uint8_t month;
+	uint8_t day;
+	uint8_t hour;
     uint8_t minute;
     uint8_t second;
 } Time;
 
 typedef struct Event
 {
-    Time time;
+    Time start;
     int state;
 
     struct Event *next;
@@ -42,6 +44,8 @@ void DeleteEvent(Event **head, Event **curr);
 void ReadKeypad(Event **head, Event **curr);
 
 bool GetTimeFromKeypad(Time *time);
+
+bool GetDateFromKeypad(Time *time);
 
 int GetStateFromKeypad();
 

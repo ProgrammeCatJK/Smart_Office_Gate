@@ -134,7 +134,8 @@ int main(void)
 
 	LCD_send_cmd(LCD_CLEAR);
 	LCD_send_cmd(0x80);
-	LCD_send_string("Input time:");
+	LCD_send_string("Initialising");
+	HAL_Delay(1000);
 	SetStartTime();
 
   /* USER CODE END 2 */

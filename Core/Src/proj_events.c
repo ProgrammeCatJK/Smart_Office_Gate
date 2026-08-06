@@ -31,7 +31,7 @@ typedef struct Event
 #define LOCKED 1
 #define UNLOCKED 0
 
-static Time startTime = {0,0,0};
+static Time startTime = {1,1,0,0,0};
 static uint32_t startTick = 0;
 
 // Creates a sorted doubly linked list
@@ -47,7 +47,7 @@ int AddEvent(Event **head, Time time, int state) {
         return 0;
     }
 
-    newEvent->time = time;
+    newEvent->start = time;
     newEvent->state = state;
     newEvent->next = NULL;
     newEvent->prev = NULL;
@@ -61,7 +61,7 @@ int AddEvent(Event **head, Time time, int state) {
     Event *curr = *head;
 
     // Insert before head
-    if (CompareTime(time, curr->time) < 0) {
+    if (CompareTime(time, curr->start) < 0) {
         newEvent->next = curr;
         curr->prev = newEvent;
         *head = newEvent;
@@ -70,7 +70,7 @@ int AddEvent(Event **head, Time time, int state) {
 
     // Find insertion point
     while (curr->next &&
-           CompareTime(curr->next->time, time) < 0) {
+           CompareTime(curr->next->start, time) < 0) {
         curr = curr->next;
     }
 
@@ -148,19 +148,27 @@ void ReadKeypad(Event **head, Event **curr) {
 			HAL_Delay(500);
 			DisplayScreen(*head);
 		} else if (button == ADD_BUTTON) {
+			Time eventTime;
+			int state;
 			LCD_send_cmd(LCD_CLEAR);
 			LCD_send_cmd(0x80);
 			LCD_send_string("Add Event");
 			LCD_send_cmd(0xC0);
+			LCD_send_string("Enter date:");
+			if (!GetDateFromKeypad(&eventTime)) {
+			    return;
+			}
+
+			LCD_send_cmd(LCD_CLEAR);
+			LCD_send_cmd(0x80);
 			LCD_send_string("Enter time:");
 
-			Time eventTime;
-			int state;
 			if (GetTimeFromKeypad(&eventTime) && (state = GetStateFromKeypad()) >= 0) {
-//				eventTime = HAL_GetTick() + (eventTime * 1000);
+
 				// add in date/time config
 				AddEvent(head, eventTime, state);
-//				DisplayScreen(*head);
+
+				// Display first item in list
 				*curr = *head;
 			} else {
 				// user cancelled
@@ -248,6 +256,60 @@ bool GetTimeFromKeypad(Time *time) {
     }
 }
 
+bool GetDateFromKeypad(Time *time) {
+    char digits[5] = "";
+    char buffer[16];
+    int index = 0;
+
+    while (1) {
+        char key = Keypad_GetKey();
+
+        if (key >= '0' && key <= '9') {
+            if (index < 4) {
+                digits[index++] = key;
+                digits[index] = '\0';
+
+                if (index <= 2) {
+                    snprintf(buffer, sizeof(buffer), "%s", digits);
+                } else {
+                    snprintf(buffer, sizeof(buffer), "%c%c/%s",
+                             digits[0], digits[1], &digits[2]);
+                }
+
+                LCD_send_cmd(0x80);
+                LCD_send_string("                ");
+                LCD_send_cmd(0x80);
+                LCD_send_string(buffer);
+
+                LCD_send_cmd(0xC0);
+                LCD_send_string("# to confirm");
+            }
+        }
+        else if (key == CONFIRM) {
+            if (index != 4)
+                continue;
+
+            time->day   = (digits[0] - '0') * 10 + (digits[1] - '0');
+            time->month = (digits[2] - '0') * 10 + (digits[3] - '0');
+
+            if (time->day < 1 || time->day > 31 ||
+                time->month < 1 || time->month > 12) {
+
+                LCD_send_cmd(LCD_CLEAR);
+                LCD_send_cmd(0x80);
+                LCD_send_string("Invalid Date");
+                HAL_Delay(500);
+                return false;
+            }
+
+            return true;
+        }
+        else if (key == '*') {
+            return false;
+        }
+    }
+}
+
 int GetStateFromKeypad() {
 	int state = UNLOCKED;
 	LCD_send_cmd(LCD_CLEAR);
@@ -276,7 +338,7 @@ int GetStateFromKeypad() {
 }
 
 void DisplayScreen(Event *curr) {
-    char buffer[17];
+//    char buffer[17];
 
     LCD_send_cmd(LCD_CLEAR);
     LCD_send_cmd(0x80);
@@ -286,14 +348,7 @@ void DisplayScreen(Event *curr) {
         LCD_send_cmd(0xC0);
         LCD_send_string("A to add event");
     } else {
-//        snprintf(buffer, sizeof(buffer), "Time:%lu", curr->time);
-    	snprintf(buffer,
-			 sizeof(buffer),
-			 "%02u:%02u:%02u",
-			 (unsigned)curr->time.hour,
-			 (unsigned)curr->time.minute,
-			 (unsigned)curr->time.second);
-        LCD_send_string(buffer);
+    	DisplayTime(curr->start);
 
         LCD_send_cmd(0xC0);    // Second line
 
@@ -316,7 +371,7 @@ void CheckEvents(Event **head, Event **curr)
 	);
 
     while (*head != NULL &&
-           CompareTime(currentTime, (*head)->time) >= 0)
+           CompareTime(currentTime, (*head)->start) >= 0)
     {
         Event *temp = *head;
 
@@ -372,8 +427,13 @@ Time SecondsToHMS(uint32_t seconds)
 }
 
 // Validates time struct input
-bool IsValidTime(Time time)
-{
+bool IsValidTime(Time time) {
+	if (time.month < 1 || time.month > 12)
+	    return false;
+
+	if (time.day < 1 || time.day > 31)
+	    return false;
+
     if (time.hour > 23)
         return false;
 
@@ -388,11 +448,13 @@ bool IsValidTime(Time time)
 
 // Displays time on the LCD in a readable format
 void DisplayTime(Time time) {
-    char buffer[16];
+    char buffer[20];
 
     snprintf(buffer,
              sizeof(buffer),
-             "%02d:%02d:%02d",
+			 "%02d/%02d %02d:%02d:%02d",
+			 time.day,
+			 time.month,
              time.hour,
              time.minute,
              time.second);
@@ -402,6 +464,12 @@ void DisplayTime(Time time) {
 
 int CompareTime(Time a, Time b)
 {
+    if (a.month != b.month)
+        return a.month - b.month;
+
+    if (a.day != b.day)
+        return a.day - b.day;
+
     if (a.hour != b.hour)
         return a.hour - b.hour;
 
@@ -411,23 +479,28 @@ int CompareTime(Time a, Time b)
     return a.second - b.second;
 }
 
-void SetStartTime(void)
-{
-    LCD_send_cmd(LCD_CLEAR);
-    LCD_send_cmd(0x80);
-    LCD_send_string("Set Time:");
+void SetStartTime(void) {
+	Time inputTime;
 
-    Time inputTime;
+	LCD_send_cmd(LCD_CLEAR);
+	LCD_send_cmd(0x80);
+	LCD_send_string("Set Date:");
 
-    while(!GetTimeFromKeypad(&inputTime));
+	while (!GetDateFromKeypad(&inputTime));
 
-    startTime = inputTime;
-    startTick = HAL_GetTick();
+	LCD_send_cmd(LCD_CLEAR);
+	LCD_send_cmd(0x80);
+	LCD_send_string("Set Time:");
 
-    LCD_send_cmd(LCD_CLEAR);
-    LCD_send_cmd(0x80);
-    LCD_send_string("Time Set");
+	while (!GetTimeFromKeypad(&inputTime));
 
-    HAL_Delay(1000);
+	startTime = inputTime;
+	startTick = HAL_GetTick();
+
+	LCD_send_cmd(LCD_CLEAR);
+	LCD_send_cmd(0x80);
+	LCD_send_string("Time Set");
+
+	HAL_Delay(1000);
 }
 
