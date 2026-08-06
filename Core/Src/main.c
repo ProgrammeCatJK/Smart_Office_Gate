@@ -206,7 +206,7 @@ int main(void)
 	  // Authorisation check
 	  /*==============================================*/
 	  if(!authorised) {
-		  NFC_Check();
+		  Access_Check();
 		  HAL_Delay(100);
 	  }
 

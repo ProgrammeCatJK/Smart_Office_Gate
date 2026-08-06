@@ -41,7 +41,6 @@ int AddEvent(Event **head, Time time, uint32_t duration, bool startEvent) {
     newEvent->start = time;
     newEvent->duration = duration;
     newEvent->startEvent = startEvent;
-//    newEvent->state = state;
     newEvent->next = NULL;
     newEvent->prev = NULL;
 
@@ -84,6 +83,7 @@ void DeleteEvent(Event **head, Event **curr) {
 	if (*curr == NULL) {
 	    return;
 	}
+
 	Event *temp = *curr;
 
 	// Move current pointer to not delete it
@@ -113,9 +113,6 @@ void ReadKeypad(Event **head, Event **curr) {
 	while (1) {
 		char button = Keypad_GetKey();
 
-//		if (*curr == NULL && button != ADD_BUTTON) {
-//			return;
-//		}
 		if (button == NEXT_BUTTON) {
 			if (*curr != NULL && (*curr)->next != NULL) {
 				*curr = (*curr)->next;
@@ -139,7 +136,6 @@ void ReadKeypad(Event **head, Event **curr) {
 			}
 			updateLCD = true;
 			HAL_Delay(500);
-
 			return;
 		} else if (button == ADD_BUTTON) {
 			Time eventTime;
@@ -172,16 +168,14 @@ void ReadKeypad(Event **head, Event **curr) {
 			    return;
 			}
 
-			// add in start and end
+			// Add in start and end
 			AddEvent(head, eventTime, duration, true);
-
 			endTime = AddSeconds(eventTime, duration);
 			AddEvent(head, endTime, 0, false);
 
 			// Display first item in list
 			*curr = *head;
 			updateLCD = true;
-
 			return;
 		} else if (button == DOOR_BUTTON) {
 			updateLCD = true;
@@ -194,8 +188,6 @@ void ReadKeypad(Event **head, Event **curr) {
 			Motor_SetPosition(OPEN_ForEntrance);
 			doorOpen = true;
 		    doorOpenTime = HAL_GetTick();
-
-//			HAL_Delay(500);
 			return;
 		} else if (button == EXIT_BUTTON) {
 			authorised = false;
@@ -209,7 +201,6 @@ void ReadKeypad(Event **head, Event **curr) {
 			// set flag for lcd/auth off
 		}
 	}
-	return;
 }
 
 bool GetTimeFromKeypad(Time *time) {
@@ -227,16 +218,12 @@ bool GetTimeFromKeypad(Time *time) {
 
                 if (index <= 2) {
                     snprintf(buffer, sizeof(buffer), "%s", digits);
-                }
-                else if (index <= 4) {
+                } else if (index <= 4) {
                     snprintf(buffer, sizeof(buffer), "%c%c:%s",
                              digits[0], digits[1], &digits[2]);
-                }
-                else {
-                    snprintf(buffer, sizeof(buffer), "%c%c:%c%c:%s",
-                             digits[0], digits[1],
-                             digits[2], digits[3],
-                             &digits[4]);
+                } else {
+                    snprintf(buffer, sizeof(buffer), "%c%c:%c%c:%s", digits[0],
+                    		digits[1], digits[2], digits[3], &digits[4]);
                 }
 
                 LCD_send_cmd(0x80);
@@ -333,9 +320,6 @@ int GetStateFromKeypad() {
 	while (1) {
 		char key = Keypad_GetKey();
 		LCD_send_cmd(0xC0);
-//		char buffer[2];
-//		snprintf(buffer, sizeof(buffer), "%c", key);
-//		LCD_send_string(buffer);
 		if (key == '1') {
 			LCD_send_cmd(0xC0);
 			LCD_send_string("1: LOCK    ");
@@ -352,8 +336,7 @@ int GetStateFromKeypad() {
 	}
 }
 
-uint32_t GetDurationFromKeypad(void)
-{
+uint32_t GetDurationFromKeypad(void) {
     char digits[7] = "";
     char buffer[16];
     int index = 0;
@@ -362,7 +345,6 @@ uint32_t GetDurationFromKeypad(void)
         char key = Keypad_GetKey();
 
         if (key >= '0' && key <= '9') {
-
             if (index < 6) {
                 digits[index++] = key;
                 digits[index] = '\0';
@@ -370,17 +352,12 @@ uint32_t GetDurationFromKeypad(void)
                 // Display as HH:MM:SS
                 if (index <= 2) {
                     snprintf(buffer, sizeof(buffer), "%s", digits);
-                }
-                else if (index <= 4) {
+                } else if (index <= 4) {
                     snprintf(buffer, sizeof(buffer), "%c%c:%s",
-                             digits[0], digits[1],
-                             &digits[2]);
-                }
-                else {
-                    snprintf(buffer, sizeof(buffer), "%c%c:%c%c:%s",
-                             digits[0], digits[1],
-                             digits[2], digits[3],
-                             &digits[4]);
+                             digits[0], digits[1], &digits[2]);
+                } else {
+                    snprintf(buffer, sizeof(buffer), "%c%c:%c%c:%s", digits[0],
+                    		digits[1], digits[2], digits[3], &digits[4]);
                 }
 
                 LCD_send_cmd(0x80);
@@ -391,52 +368,32 @@ uint32_t GetDurationFromKeypad(void)
                 LCD_send_cmd(0xC0);
                 LCD_send_string("# to confirm");
             }
-        }
-
-        else if (key == CONFIRM) {
-
+        } else if (key == CONFIRM) {
             // Need exactly HHMMSS
             if (index != 6)
                 continue;
 
-            uint32_t hours =
-                (digits[0] - '0') * 10 +
-                (digits[1] - '0');
-
-            uint32_t minutes =
-                (digits[2] - '0') * 10 +
-                (digits[3] - '0');
-
-            uint32_t seconds =
-                (digits[4] - '0') * 10 +
-                (digits[5] - '0');
-
+            uint32_t hours = (digits[0] - '0') * 10 + (digits[1] - '0');
+            uint32_t minutes = (digits[2] - '0') * 10 + (digits[3] - '0');
+            uint32_t seconds = (digits[4] - '0') * 10 + (digits[5] - '0');
 
             // Validate duration
             if (hours > 23 || minutes > 59 || seconds > 59) {
-
                 LCD_send_cmd(LCD_CLEAR);
                 LCD_send_cmd(0x80);
                 LCD_send_string("Invalid Duration");
                 HAL_Delay(1000);
-
                 continue;
             }
 
-            return (hours * 3600UL) +
-                   (minutes * 60UL) +
-                   seconds;
-        }
-
-        else if (key == '*') {
+            return (hours * 3600UL) + (minutes * 60UL) + seconds;
+        } else if (key == '*') {
             return 0;
         }
     }
 }
 
 void DisplayScreen(Event *curr) {
-//    char buffer[17];
-
     LCD_send_cmd(LCD_CLEAR);
     LCD_send_cmd(0x80);
 
@@ -446,7 +403,6 @@ void DisplayScreen(Event *curr) {
         LCD_send_string("A to add event");
     } else {
     	DisplayTime(curr->start);
-
         LCD_send_cmd(0xC0);    // Second line
 
         if (curr->startEvent) {
@@ -457,33 +413,24 @@ void DisplayScreen(Event *curr) {
     }
 }
 
-//
-void CheckEvents(Event **head, Event **curr)
-{
-//    Time currentTime = GetCurrentTime();
+void CheckEvents(Event **head, Event **curr) {
 	uint32_t elapsedSeconds = (HAL_GetTick() - startTick) / 1000;
-
 	Time currentTime = AddSeconds(startTime, elapsedSeconds);
 
-    while (*head != NULL &&
-           CompareTime(currentTime, (*head)->start) >= 0)
-    {
+    while (*head != NULL && CompareTime(currentTime, (*head)->start) >= 0) {
         Event *temp = *head;
 
         // Perform event action
         if (temp->startEvent) {
             activeEvents++;
-
             if (activeEvents == 1) {
                 scheduledOpen = true;
                 Motor_SetPosition(OPEN_ForEntrance);
             }
         } else {
             activeEvents--;
-
             if (activeEvents == 0) {
                 scheduledOpen = false;
-
                 if (!doorOpen) {   // no manual open active
                     Motor_SetPosition(CLOSE);
                 }
@@ -492,7 +439,6 @@ void CheckEvents(Event **head, Event **curr)
 
         // Remove event from list
         *head = temp->next;
-
         if (*head != NULL) {
             (*head)->prev = NULL;
         }
@@ -509,21 +455,16 @@ void CheckEvents(Event **head, Event **curr)
 }
 
 // Converts HHMMSS into seconds
-uint32_t HMSToSeconds(Time time)
-{
-    return (time.hour * 3600UL) +
-           (time.minute * 60UL) +
-            time.second;
+uint32_t HMSToSeconds(Time time) {
+    return (time.hour * 3600UL) + (time.minute * 60UL) + time.second;
 }
 
 // Converts seconds into HHMMSS format
-Time SecondsToHMS(uint32_t seconds)
-{
+Time SecondsToHMS(uint32_t seconds) {
     Time time = startTime;
 
     time.hour = seconds / 3600;
     seconds %= 3600;
-
     time.minute = seconds / 60;
     time.second = seconds % 60;
 
@@ -554,20 +495,13 @@ bool IsValidTime(Time time) {
 void DisplayTime(Time time) {
     char buffer[20];
 
-    snprintf(buffer,
-             sizeof(buffer),
-			 "%02d/%02d %02d:%02d:%02d",
-			 time.day,
-			 time.month,
-             time.hour,
-             time.minute,
-             time.second);
+    snprintf(buffer, sizeof(buffer), "%02d/%02d %02d:%02d:%02d", time.day,
+    		time.month, time.hour, time.minute, time.second);
 
     LCD_send_string(buffer);
 }
 
-int CompareTime(Time a, Time b)
-{
+int CompareTime(Time a, Time b) {
     if (a.month != b.month)
         return a.month - b.month;
 
@@ -608,31 +542,15 @@ void SetStartTime(void) {
 	HAL_Delay(1000);
 }
 
-Time AddSeconds(Time start, uint32_t seconds)
-{
+Time AddSeconds(Time start, uint32_t seconds) {
     Time end = start;
 
-    uint8_t daysInMonth[] = {
-        0,
-        31, // Jan
-        28, // Feb
-        31, // Mar
-        30, // Apr
-        31, // May
-        30, // Jun
-        31, // Jul
-        31, // Aug
-        30, // Sep
-        31, // Oct
-        30, // Nov
-        31  // Dec
-    };
-
+    /* Jan starts at index 1 */
+    uint8_t daysInMonth[] = { 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
     // Add seconds
     end.second += seconds % 60;
     seconds /= 60;
-
 
     // Carry seconds -> minutes
     if (end.second >= 60) {
@@ -640,11 +558,9 @@ Time AddSeconds(Time start, uint32_t seconds)
         seconds++;
     }
 
-
     // Add minutes
     end.minute += seconds % 60;
     seconds /= 60;
-
 
     // Carry minutes -> hours
     if (end.minute >= 60) {
@@ -652,11 +568,9 @@ Time AddSeconds(Time start, uint32_t seconds)
         seconds++;
     }
 
-
     // Add hours
     end.hour += seconds % 24;
     seconds /= 24;
-
 
     // Carry hours -> days
     if (end.hour >= 24) {
@@ -664,18 +578,14 @@ Time AddSeconds(Time start, uint32_t seconds)
         seconds++;
     }
 
-
     // Add remaining days
     while (seconds > 0) {
-
         end.day++;
         seconds--;
 
         if (end.day > daysInMonth[end.month]) {
-
             end.day = 1;
             end.month++;
-
             if (end.month > 12) {
                 end.month = 1;
             }

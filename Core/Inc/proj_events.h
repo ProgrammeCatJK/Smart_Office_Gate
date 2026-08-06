@@ -12,8 +12,7 @@
 #include <stdint.h>
 #include "stdbool.h"
 
-typedef struct
-{
+typedef struct {
 	uint8_t month;
 	uint8_t day;
 	uint8_t hour;
@@ -21,18 +20,14 @@ typedef struct
     uint8_t second;
 } Time;
 
-typedef struct Event
-{
+typedef struct Event {
     Time start;
-//    int state;
     uint32_t duration;
     bool startEvent;
 
     struct Event *next;
     struct Event *prev;
-
 } Event;
-
 
 #define PREV_BUTTON '1'
 #define NEXT_BUTTON '3'
