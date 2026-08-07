@@ -189,6 +189,8 @@ void ReadKeypad(Event **head, Event **curr) {
 			Motor_SetPosition(OPEN_ForEntrance);
 			doorOpen = true;
 		    doorOpenTime = HAL_GetTick();
+		    HAL_Delay(500);
+			LCD_send_cmd(LCD_CLEAR);
 			return;
 		} else if (button == EXIT_BUTTON) {
 			authLevel = AUTH_NONE;
@@ -198,12 +200,13 @@ void ReadKeypad(Event **head, Event **curr) {
 			LCD_send_cmd(0x80);
 			LCD_send_string("Exiting menu");
 			HAL_Delay(500);
+			LCD_send_cmd(LCD_CLEAR);
 			return;
-			// set flag for lcd/auth off
 		}
 	}
 }
 
+// Get input for time
 bool GetTimeFromKeypad(Time *time) {
     char digits[7] = "";
     char buffer[16];
@@ -259,6 +262,7 @@ bool GetTimeFromKeypad(Time *time) {
     }
 }
 
+// Get input for date
 bool GetDateFromKeypad(Time *time) {
     char digits[5] = "";
     char buffer[16];
@@ -313,30 +317,7 @@ bool GetDateFromKeypad(Time *time) {
     }
 }
 
-int GetStateFromKeypad() {
-	int state = UNLOCKED;
-	LCD_send_cmd(LCD_CLEAR);
-	LCD_send_cmd(0x80);
-	LCD_send_string("Enter state:");
-	while (1) {
-		char key = Keypad_GetKey();
-		LCD_send_cmd(0xC0);
-		if (key == '1') {
-			LCD_send_cmd(0xC0);
-			LCD_send_string("1: LOCK    ");
-			state = LOCKED;
-		} else if (key == '0') {
-			LCD_send_cmd(0xC0);
-			LCD_send_string("0: UNLOCK  ");
-			state = UNLOCKED;
-		} else if (key == CONFIRM) {
-			return state;
-		} else if (key == '*') {
-			return -1;
-		}
-	}
-}
-
+// Get input for duration
 uint32_t GetDurationFromKeypad(void) {
     char digits[7] = "";
     char buffer[16];
@@ -394,6 +375,7 @@ uint32_t GetDurationFromKeypad(void) {
     }
 }
 
+// Display current event on the lcd
 void DisplayScreen(Event *curr) {
     LCD_send_cmd(LCD_CLEAR);
     LCD_send_cmd(0x80);
@@ -414,6 +396,7 @@ void DisplayScreen(Event *curr) {
     }
 }
 
+// Handler for the events set
 void CheckEvents(Event **head, Event **curr) {
 	uint32_t elapsedSeconds = (HAL_GetTick() - startTick) / 1000;
 	Time currentTime = AddSeconds(startTime, elapsedSeconds);
@@ -502,6 +485,7 @@ void DisplayTime(Time time) {
     LCD_send_string(buffer);
 }
 
+// Compares two given times to see which one comes first
 int CompareTime(Time a, Time b) {
     if (a.month != b.month)
         return a.month - b.month;
@@ -518,6 +502,7 @@ int CompareTime(Time a, Time b) {
     return a.second - b.second;
 }
 
+// Initialiser for the start date/time
 void SetStartTime(void) {
 	Time inputTime;
 
@@ -540,9 +525,11 @@ void SetStartTime(void) {
 	LCD_send_cmd(0x80);
 	LCD_send_string("Time Set");
 
-	HAL_Delay(1000);
+	HAL_Delay(500);
+	LCD_send_cmd(LCD_CLEAR);
 }
 
+// Calculates when the next event is
 Time AddSeconds(Time start, uint32_t seconds) {
     Time end = start;
 
