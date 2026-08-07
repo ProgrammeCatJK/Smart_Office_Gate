@@ -281,6 +281,8 @@ bool GetTimeFromKeypad(Time *time) {
         	        LCD_send_string("# to confirm");
         	    }
         } else if (key == '*') {
+        	LCD_send_cmd(0x80);
+			LCD_send_string("                ");
             return false;
         }
     }
@@ -323,7 +325,8 @@ bool GetDateFromKeypad(Time *time) {
             time->day   = (digits[0] - '0') * 10 + (digits[1] - '0');
             time->month = (digits[2] - '0') * 10 + (digits[3] - '0');
 
-            if (IsValidTime(*time)) {
+            if (time->day < 1 || time->day > 31 ||
+				time->month < 1 || time->month > 12) {
 
                 LCD_send_cmd(LCD_CLEAR);
                 LCD_send_cmd(0x80);
@@ -353,6 +356,8 @@ bool GetDateFromKeypad(Time *time) {
 
         	    }
         } else if (key == '*') {
+        	LCD_send_cmd(0x80);
+			LCD_send_string("                ");
             return false;
         }
     }
