@@ -26,6 +26,10 @@
 #include "motor.h"
 #include "ldr.h"
 #include "ShiftReg.h"
+#include "proj_keypad.h"
+#include "proj_lcd.h"
+#include "proj_events.h"
+#include "proj_auth.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -66,6 +70,13 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 int buzzer_counter = 0;
 int unauth_flag = 0;
+
+uint32_t authTime;
+bool updateLCD = true;
+
+bool doorOpen = false;
+uint32_t doorOpenTime;
+bool scheduledOpen = false;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -167,6 +178,36 @@ int main(void)
   /*==============================================*/
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
   enum person_pos pos = IDLE;
+  // LCD init
+    LCD_init();
+
+    	char test[] = "UART OK\r\n";
+    	HAL_UART_Transmit(&huart2, (uint8_t*)test, strlen(test), HAL_MAX_DELAY);
+
+
+  	// Event scheduler initialiser
+  	Event *head;
+  	Event *curr;
+
+  	EventInit(&head);
+  	curr = NULL;
+
+  	LCD_send_cmd(LCD_CLEAR);
+  	LCD_send_cmd(0x80);
+  	LCD_send_string("Initialising");
+  	HAL_Delay(1000);
+  	SetStartTime();
+
+  	  // RFID init
+  	printf("BEFORE PN532\r\n");
+
+  	if(!PN532_Init())
+  	{
+  		printf("PN532 ERROR\r\n");
+  	    Error_Handler();
+  	}
+
+  	printf("AFTER PN532\r\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -247,10 +288,11 @@ int main(void)
 	  /*==============================================*/
 	  // Change to NFC trigger Condition
 	  /*==============================================*/
-	  if (HAL_GPIO_ReadPin(GPIOA, SW2_Pin) == 1) {
-		  HAL_Delay(12);
-		  Motor_SetPosition(OPEN_ForEntrance);
-	  }
+//	  if (HAL_GPIO_ReadPin(GPIOA, SW2_Pin) == 1) {
+//		  HAL_Delay(12);
+//		  Motor_SetPosition(OPEN_ForEntrance);
+//	  }
+
 
 	  /*==============================================*/
 	  // Change to Motor Stopping Condition
@@ -259,6 +301,55 @@ int main(void)
 	    HAL_Delay(12);
 	    Motor_Stop();
 	  }
+
+	  /*==============================================*/
+	  // Authorisation check
+	  /*==============================================*/
+	  if (authLevel == AUTH_NONE) {
+		  Access_Check();
+		  HAL_Delay(100);
+	  }
+
+	  /*==============================================*/
+	  // Display management menu
+	  /*==============================================*/
+	  // && authLevel == AUTH_MANAGER
+//	  if (authorised == true) {
+//		  if (updateLCD) {
+//		          DisplayScreen(curr);
+//		          updateLCD = false;
+//		      }
+//	      ReadKeypad(&head, &curr);
+//	  }
+//		  printf("authorised\r\n");
+	  if (authLevel == AUTH_MANAGER) {
+//	    	  printf("open menu");
+		  if (updateLCD) {
+			  DisplayScreen(curr);
+			  updateLCD = false;
+		  }
+		  ReadKeypad(&head, &curr);
+	  } else if (authLevel == AUTH_DOOR) {
+		  Motor_SetPosition(OPEN_ForEntrance);
+		  printf("open door\r\n");
+
+		  doorOpen = true;
+		  doorOpenTime = HAL_GetTick();
+
+		  authLevel = AUTH_NONE;
+	  }
+
+	  printf("doorOpen=%d activeEvents=%d\r\n", doorOpen, activeEvents);
+
+	  if (doorOpen && !scheduledOpen) {
+	      if ((HAL_GetTick() - doorOpenTime) > 5000) {
+	          Motor_SetPosition(CLOSE);
+	          doorOpen = false;
+	      }
+	  }
+
+	  // Check events every loop
+	  CheckEvents(&head, &curr);
 
     /* USER CODE END WHILE */
 
