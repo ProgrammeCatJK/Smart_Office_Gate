@@ -167,9 +167,9 @@ void ReadKeypad(Event **head, Event **curr) {
 			}
 
 			// Add in start and end
-			AddEvent(head, eventTime, duration, true);
+			AddEvent(head, eventTime, duration, EVENT_START);
 			endTime = AddSeconds(eventTime, duration);
-			AddEvent(head, endTime, 0, false);
+			AddEvent(head, endTime, 0, EVENT_START);
 
 			// Display first item in list
 			*curr = *head;
@@ -205,21 +205,21 @@ void ReadKeypad(Event **head, Event **curr) {
 
 // Get input for time
 bool GetTimeFromKeypad(Time *time) {
-    char digits[7] = "";
-    char buffer[16];
+    char digits[TIME_DIGITS_LENGTH + 1] = "";
+    char buffer[LCD_LINE_LENGTH];
     int index = 0;
 
     while (1) {
         char key = Keypad_GetKey();
 
         if (key >= '0' && key <= '9') {
-            if (index < 6) {
+            if (index < TIME_DIGITS_LENGTH) {
                 digits[index++] = key;
                 digits[index] = '\0';
 
                 if (index <= 2) {
                     snprintf(buffer, sizeof(buffer), "%s", digits);
-                } else if (index <= 4) {
+                } else if (index <= DATE_DIGITS_LENGTH) {
                     snprintf(buffer, sizeof(buffer), "%c%c:%s",
                              digits[0], digits[1], &digits[2]);
                 } else {
@@ -236,7 +236,7 @@ bool GetTimeFromKeypad(Time *time) {
                 LCD_send_string("# to confirm");
             }
         } else if (key == CONFIRM) {
-            if (index != 6) {
+            if (index != TIME_DIGITS_LENGTH) {
                 continue;   // Need exactly 6 digits
             }
 
@@ -264,7 +264,7 @@ bool GetTimeFromKeypad(Time *time) {
         	        if (index <= 2) {
         	            snprintf(buffer, sizeof(buffer), "%s", digits);
         	        }
-        	        else if (index <= 4) {
+        	        else if (index <= DATE_DIGITS_LENGTH) {
         	            snprintf(buffer, sizeof(buffer), "%c%c:%s",
         	                     digits[0], digits[1], &digits[2]);
         	        }
@@ -290,15 +290,15 @@ bool GetTimeFromKeypad(Time *time) {
 
 // Get input for date
 bool GetDateFromKeypad(Time *time) {
-    char digits[5] = "";
-    char buffer[16];
+    char digits[DATE_DIGITS_LENGTH + 1] = "";
+    char buffer[LCD_LINE_LENGTH];
     int index = 0;
 
     while (1) {
         char key = Keypad_GetKey();
 
         if (key >= '0' && key <= '9') {
-            if (index < 4) {
+            if (index < DATE_DIGITS_LENGTH) {
                 digits[index++] = key;
                 digits[index] = '\0';
 
@@ -319,14 +319,14 @@ bool GetDateFromKeypad(Time *time) {
             }
         }
         else if (key == CONFIRM) {
-            if (index != 4)
+            if (index != DATE_DIGITS_LENGTH)
                 continue;
 
             time->day   = (digits[0] - '0') * 10 + (digits[1] - '0');
             time->month = (digits[2] - '0') * 10 + (digits[3] - '0');
 
-            if (time->day < 1 || time->day > 31 ||
-				time->month < 1 || time->month > 12) {
+            if (time->day < 1 || time->day > MAX_DAY ||
+				time->month < 1 || time->month > MAX_MONTH) {
 
                 LCD_send_cmd(LCD_CLEAR);
                 LCD_send_cmd(LCD_ROW_1);
@@ -365,22 +365,22 @@ bool GetDateFromKeypad(Time *time) {
 
 // Get input for duration
 uint32_t GetDurationFromKeypad(void) {
-    char digits[7] = "";
-    char buffer[16];
+    char digits[TIME_DIGITS_LENGTH + 1] = "";
+    char buffer[LCD_LINE_LENGTH];
     int index = 0;
 
     while (1) {
         char key = Keypad_GetKey();
 
         if (key >= '0' && key <= '9') {
-            if (index < 6) {
+            if (index < TIME_DIGITS_LENGTH) {
                 digits[index++] = key;
                 digits[index] = '\0';
 
                 // Display as HH:MM:SS
                 if (index <= 2) {
                     snprintf(buffer, sizeof(buffer), "%s", digits);
-                } else if (index <= 4) {
+                } else if (index <= DATE_DIGITS_LENGTH) {
                     snprintf(buffer, sizeof(buffer), "%c%c:%s",
                              digits[0], digits[1], &digits[2]);
                 } else {
@@ -398,7 +398,7 @@ uint32_t GetDurationFromKeypad(void) {
             }
         } else if (key == CONFIRM) {
             // Need exactly HHMMSS
-            if (index != 6)
+            if (index != TIME_DIGITS_LENGTH)
                 continue;
 
             uint32_t hours = (digits[0] - '0') * 10 + (digits[1] - '0');
@@ -406,7 +406,7 @@ uint32_t GetDurationFromKeypad(void) {
             uint32_t seconds = (digits[4] - '0') * 10 + (digits[5] - '0');
 
             // Validate duration
-            if (hours > 23 || minutes > 59 || seconds > 59) {
+            if (hours > MAX_HOUR || minutes > MAX_MINUTE || seconds > MAX_SECOND) {
                 LCD_send_cmd(LCD_CLEAR);
                 LCD_send_cmd(LCD_ROW_1);
                 LCD_send_string("Invalid Duration");
@@ -426,7 +426,7 @@ uint32_t GetDurationFromKeypad(void) {
         	        if (index <= 2) {
         	            snprintf(buffer, sizeof(buffer), "%s", digits);
         	        }
-        	        else if (index <= 4) {
+        	        else if (index <= DATE_DIGITS_LENGTH) {
         	            snprintf(buffer, sizeof(buffer), "%c%c:%s",
         	                     digits[0], digits[1], &digits[2]);
         	        }
@@ -530,19 +530,19 @@ Time SecondsToHMS(uint32_t seconds) {
 
 // Validates time struct input
 bool IsValidTime(Time time) {
-	if (time.month < 1 || time.month > 12)
+	if (time.month < 1 || time.month > MAX_MONTH)
 	    return false;
 
-	if (time.day < 1 || time.day > 31)
+	if (time.day < 1 || time.day > MAX_DAY)
 	    return false;
 
-    if (time.hour > 23)
+    if (time.hour > MAX_HOUR)
         return false;
 
-    if (time.minute > 59)
+    if (time.minute > MAX_MINUTE)
         return false;
 
-    if (time.second > 59)
+    if (time.second > MAX_SECOND)
         return false;
 
     return true;
@@ -647,7 +647,7 @@ Time AddSeconds(Time start, uint32_t seconds) {
         if (end.day > daysInMonth[end.month]) {
             end.day = 1;
             end.month++;
-            if (end.month > 12) {
+            if (end.month > MAX_MONTH) {
                 end.month = 1;
             }
         }
