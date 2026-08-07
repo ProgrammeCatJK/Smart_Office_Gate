@@ -280,7 +280,7 @@ bool GetTimeFromKeypad(Time *time) {
         	        LCD_send_cmd(LCD_ROW_2);
         	        LCD_send_string("# to confirm");
         	    }
-        } else if (key == '*') {
+        } else if (key == BACK_BUTTON) {
         	LCD_send_cmd(LCD_ROW_1);
 			LCD_send_string(LCD_CLEAR_LINE);
             return false;
@@ -355,7 +355,7 @@ bool GetDateFromKeypad(Time *time) {
                     LCD_send_string("# to confirm");
 
         	    }
-        } else if (key == '*') {
+        } else if (key == BACK_BUTTON) {
         	LCD_send_cmd(LCD_ROW_1);
 			LCD_send_string(LCD_CLEAR_LINE);
             return false;
@@ -442,7 +442,7 @@ uint32_t GetDurationFromKeypad(void) {
         	        LCD_send_cmd(LCD_ROW_2);
         	        LCD_send_string("# to confirm");
         	    }
-        } else if (key == '*') {
+        } else if (key == BACK_BUTTON) {
             return 0;
         }
     }
