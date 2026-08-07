@@ -36,8 +36,14 @@ typedef struct Event {
 #define EXIT_BUTTON 'C'
 #define DEL_BUTTON 'D'
 #define CONFIRM '#'
+#define BACK_BUTTON '*'
 #define LOCKED 1
 #define UNLOCKED 0
+
+#define LCD_ROW_1 0x80
+#define LCD_ROW_2 0xC0
+#define LCD_CLEAR_LINE "                "
+
 
 static Time startTime = {1,1,0,0,0};
 static uint32_t startTick = 0;

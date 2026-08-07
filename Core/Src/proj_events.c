@@ -126,11 +126,11 @@ void ReadKeypad(Event **head, Event **curr) {
 			}
 		} else if (button == DEL_BUTTON) {
 			LCD_send_cmd(LCD_CLEAR);
-			LCD_send_cmd(0x80);
+			LCD_send_cmd(LCD_ROW_1);
 			LCD_send_string("Deleted Event");
 			if (*curr == NULL) {
 				LCD_send_cmd(LCD_CLEAR);
-				LCD_send_cmd(0x80);
+				LCD_send_cmd(LCD_ROW_1);
 				LCD_send_string("No events to del");
 			} else {
 				DeleteEvent(head, curr);
@@ -142,23 +142,23 @@ void ReadKeypad(Event **head, Event **curr) {
 			Time eventTime;
 			Time endTime;
 			uint32_t duration;
-			LCD_send_cmd(0x80);
+			LCD_send_cmd(LCD_ROW_1);
 			LCD_send_string("Add Event       ");
-			LCD_send_cmd(0xC0);
+			LCD_send_cmd(LCD_ROW_2);
 			LCD_send_string("Enter date:     ");
 			if (!GetDateFromKeypad(&eventTime)) {
 				updateLCD = true;
 			    return;
 			}
 
-			LCD_send_cmd(0x80);
+			LCD_send_cmd(LCD_ROW_1);
 			LCD_send_string("Enter time:     ");
 			if (!GetTimeFromKeypad(&eventTime)) {
 				updateLCD = true;
 				return;
 			}
 
-			LCD_send_cmd(0x80);
+			LCD_send_cmd(LCD_ROW_1);
 			LCD_send_string("Enter duration: ");
 			duration = GetDurationFromKeypad();
 			if (duration == 0) {
@@ -180,7 +180,7 @@ void ReadKeypad(Event **head, Event **curr) {
 			authLevel = AUTH_NONE;
 			authTime = HAL_GetTick();
 			LCD_send_cmd(LCD_CLEAR);
-			LCD_send_cmd(0x80);
+			LCD_send_cmd(LCD_ROW_1);
 			LCD_send_string("Opening door");
 
 			Motor_SetPosition(OPEN_ForEntrance);
@@ -194,7 +194,7 @@ void ReadKeypad(Event **head, Event **curr) {
 			updateLCD = true;
 			authTime = HAL_GetTick();
 			LCD_send_cmd(LCD_CLEAR);
-			LCD_send_cmd(0x80);
+			LCD_send_cmd(LCD_ROW_1);
 			LCD_send_string("Exiting menu");
 			HAL_Delay(500);
 			LCD_send_cmd(LCD_CLEAR);
@@ -227,12 +227,12 @@ bool GetTimeFromKeypad(Time *time) {
                     		digits[1], digits[2], digits[3], &digits[4]);
                 }
 
-                LCD_send_cmd(0x80);
-                LCD_send_string("                ");
-                LCD_send_cmd(0x80);
+                LCD_send_cmd(LCD_ROW_1);
+                LCD_send_string(LCD_CLEAR_LINE);
+                LCD_send_cmd(LCD_ROW_1);
                 LCD_send_string(buffer);
 
-                LCD_send_cmd(0xC0);
+                LCD_send_cmd(LCD_ROW_2);
                 LCD_send_string("# to confirm");
             }
         } else if (key == CONFIRM) {
@@ -246,7 +246,7 @@ bool GetTimeFromKeypad(Time *time) {
 
             if (!IsValidTime(*time)) {
                 LCD_send_cmd(LCD_CLEAR);
-                LCD_send_cmd(0x80);
+                LCD_send_cmd(LCD_ROW_1);
                 LCD_send_string("Invalid Time");
                 HAL_Delay(500);
                 return false;
@@ -257,9 +257,9 @@ bool GetTimeFromKeypad(Time *time) {
         	if (index > 0) {
         	        digits[--index] = '\0';
 
-        	        LCD_send_cmd(0x80);
-        	        LCD_send_string("                ");
-        	        LCD_send_cmd(0x80);
+        	        LCD_send_cmd(LCD_ROW_1);
+        	        LCD_send_string(LCD_CLEAR_LINE);
+        	        LCD_send_cmd(LCD_ROW_1);
 
         	        if (index <= 2) {
         	            snprintf(buffer, sizeof(buffer), "%s", digits);
@@ -277,12 +277,12 @@ bool GetTimeFromKeypad(Time *time) {
 
         	        LCD_send_string(buffer);
 
-        	        LCD_send_cmd(0xC0);
+        	        LCD_send_cmd(LCD_ROW_2);
         	        LCD_send_string("# to confirm");
         	    }
         } else if (key == '*') {
-        	LCD_send_cmd(0x80);
-			LCD_send_string("                ");
+        	LCD_send_cmd(LCD_ROW_1);
+			LCD_send_string(LCD_CLEAR_LINE);
             return false;
         }
     }
@@ -309,12 +309,12 @@ bool GetDateFromKeypad(Time *time) {
                              digits[0], digits[1], &digits[2]);
                 }
 
-                LCD_send_cmd(0x80);
-                LCD_send_string("                ");
-                LCD_send_cmd(0x80);
+                LCD_send_cmd(LCD_ROW_1);
+                LCD_send_string(LCD_CLEAR_LINE);
+                LCD_send_cmd(LCD_ROW_1);
                 LCD_send_string(buffer);
 
-                LCD_send_cmd(0xC0);
+                LCD_send_cmd(LCD_ROW_2);
                 LCD_send_string("# to confirm");
             }
         }
@@ -329,7 +329,7 @@ bool GetDateFromKeypad(Time *time) {
 				time->month < 1 || time->month > 12) {
 
                 LCD_send_cmd(LCD_CLEAR);
-                LCD_send_cmd(0x80);
+                LCD_send_cmd(LCD_ROW_1);
                 LCD_send_string("Invalid Date");
                 HAL_Delay(500);
                 return false;
@@ -346,18 +346,18 @@ bool GetDateFromKeypad(Time *time) {
                                  digits[0], digits[1], &digits[2]);
                     }
 
-                    LCD_send_cmd(0x80);
-                    LCD_send_string("                ");
-                    LCD_send_cmd(0x80);
+                    LCD_send_cmd(LCD_ROW_1);
+                    LCD_send_string(LCD_CLEAR_LINE);
+                    LCD_send_cmd(LCD_ROW_1);
                     LCD_send_string(buffer);
 
-                    LCD_send_cmd(0xC0);
+                    LCD_send_cmd(LCD_ROW_2);
                     LCD_send_string("# to confirm");
 
         	    }
         } else if (key == '*') {
-        	LCD_send_cmd(0x80);
-			LCD_send_string("                ");
+        	LCD_send_cmd(LCD_ROW_1);
+			LCD_send_string(LCD_CLEAR_LINE);
             return false;
         }
     }
@@ -388,12 +388,12 @@ uint32_t GetDurationFromKeypad(void) {
                     		digits[1], digits[2], digits[3], &digits[4]);
                 }
 
-                LCD_send_cmd(0x80);
-                LCD_send_string("                ");
-                LCD_send_cmd(0x80);
+                LCD_send_cmd(LCD_ROW_1);
+                LCD_send_string(LCD_CLEAR_LINE);
+                LCD_send_cmd(LCD_ROW_1);
                 LCD_send_string(buffer);
 
-                LCD_send_cmd(0xC0);
+                LCD_send_cmd(LCD_ROW_2);
                 LCD_send_string("# to confirm");
             }
         } else if (key == CONFIRM) {
@@ -408,7 +408,7 @@ uint32_t GetDurationFromKeypad(void) {
             // Validate duration
             if (hours > 23 || minutes > 59 || seconds > 59) {
                 LCD_send_cmd(LCD_CLEAR);
-                LCD_send_cmd(0x80);
+                LCD_send_cmd(LCD_ROW_1);
                 LCD_send_string("Invalid Duration");
                 HAL_Delay(500);
                 continue;
@@ -419,9 +419,9 @@ uint32_t GetDurationFromKeypad(void) {
         	if (index > 0) {
         	        digits[--index] = '\0';
 
-        	        LCD_send_cmd(0x80);
-        	        LCD_send_string("                ");
-        	        LCD_send_cmd(0x80);
+        	        LCD_send_cmd(LCD_ROW_1);
+        	        LCD_send_string(LCD_CLEAR_LINE);
+        	        LCD_send_cmd(LCD_ROW_1);
 
         	        if (index <= 2) {
         	            snprintf(buffer, sizeof(buffer), "%s", digits);
@@ -439,7 +439,7 @@ uint32_t GetDurationFromKeypad(void) {
 
         	        LCD_send_string(buffer);
 
-        	        LCD_send_cmd(0xC0);
+        	        LCD_send_cmd(LCD_ROW_2);
         	        LCD_send_string("# to confirm");
         	    }
         } else if (key == '*') {
@@ -451,15 +451,15 @@ uint32_t GetDurationFromKeypad(void) {
 // Display current event on the lcd
 void DisplayScreen(Event *curr) {
     LCD_send_cmd(LCD_CLEAR);
-    LCD_send_cmd(0x80);
+    LCD_send_cmd(LCD_ROW_1);
 
     if (curr == NULL) {
         LCD_send_string("NO EVENTS");
-        LCD_send_cmd(0xC0);
+        LCD_send_cmd(LCD_ROW_2);
         LCD_send_string("A to add event");
     } else {
     	DisplayTime(curr->start);
-        LCD_send_cmd(0xC0);    // Second line
+        LCD_send_cmd(LCD_ROW_2);    // Second line
 
         if (curr->startEvent) {
             LCD_send_string("UNLOCK START");
@@ -580,13 +580,13 @@ void SetStartTime(void) {
 	Time inputTime;
 
 	LCD_send_cmd(LCD_CLEAR);
-	LCD_send_cmd(0x80);
+	LCD_send_cmd(LCD_ROW_1);
 	LCD_send_string("Set Date:");
 
 	while (!GetDateFromKeypad(&inputTime));
 
 	LCD_send_cmd(LCD_CLEAR);
-	LCD_send_cmd(0x80);
+	LCD_send_cmd(LCD_ROW_1);
 	LCD_send_string("Set Time:");
 
 	while (!GetTimeFromKeypad(&inputTime));
@@ -595,7 +595,7 @@ void SetStartTime(void) {
 	startTick = HAL_GetTick();
 
 	LCD_send_cmd(LCD_CLEAR);
-	LCD_send_cmd(0x80);
+	LCD_send_cmd(LCD_ROW_1);
 	LCD_send_string("Time Set");
 
 	HAL_Delay(500);

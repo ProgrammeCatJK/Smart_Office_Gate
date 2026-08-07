@@ -198,7 +198,7 @@ int main(void)
   	curr = NULL;
 
   	LCD_send_cmd(LCD_CLEAR);
-  	LCD_send_cmd(0x80);
+  	LCD_send_cmd(LCD_ROW_1);
   	LCD_send_string("Initialising");
   	HAL_Delay(1000);
   	SetStartTime();
