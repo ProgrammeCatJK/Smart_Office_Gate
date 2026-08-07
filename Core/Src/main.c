@@ -21,9 +21,15 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
+
 #include "motor.h"
 #include "ldr.h"
-#include <stdio.h>
+#include "ShiftReg.h"
+#include "proj_keypad.h"
+#include "proj_lcd.h"
+#include "proj_events.h"
+#include "proj_auth.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -33,12 +39,21 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+enum person_pos {
+	IDLE,
+	IN_APRCH,
+	IN_BLOCK,
+	IN_THRU,
+	OUT_APRCH,
+	OUT_BLOCK,
+	OUT_THRU
+};
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define LOW_FREQ_ARR 6078
+#define HIGH_FREQ_ARR 3039
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -47,12 +62,21 @@ ADC_HandleTypeDef hadc3;
 
 I2C_HandleTypeDef hi2c1;
 
+TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+int buzzer_counter = 0;
+int unauth_flag = 0;
 
+uint32_t authTime;
+bool updateLCD = true;
+
+bool doorOpen = false;
+uint32_t doorOpenTime;
+bool scheduledOpen = false;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -63,6 +87,7 @@ static void MX_TIM2_Init(void);
 static void MX_ADC2_Init(void);
 static void MX_ADC3_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 /* USER CODE END PFP */
 
@@ -75,6 +100,40 @@ int _write(int file, char *ptr, int len)
     return len;
 }
 /*==================================================================*/
+
+/* Start alert. */
+static void unauth_alert_start(void) {
+	unauth_flag = 1;
+
+	TIM1->ARR = LOW_FREQ_ARR;
+	TIM1->CCR3 = LOW_FREQ_ARR / 20;
+
+	/* Display initial value. */
+	ShiftRegDisplay();
+}
+
+/* Toggle the buzzer's tone, and right shift the shift register. */
+static void unauth_update_peripherals(void) {
+	/* Prevent this function being called repeatedly from the main while loop. */
+	buzzer_counter = 1;
+
+	if (TIM1->ARR == LOW_FREQ_ARR) {
+		TIM1->ARR = HIGH_FREQ_ARR;
+		TIM1->CCR3 = HIGH_FREQ_ARR / 20;
+	} else {
+		TIM1->ARR = LOW_FREQ_ARR;
+		TIM1->CCR3 = LOW_FREQ_ARR / 20;
+	}
+	ShiftRegRightShift();
+}
+
+/* Turn off the alert. */
+static void unauth_alert_end(void) {
+	buzzer_counter = 0;
+	unauth_flag = 0;
+	TIM1->CCR3 = 0;
+	ShiftRegReset();
+}
 /* USER CODE END 0 */
 
 /**
@@ -110,33 +169,117 @@ int main(void)
   MX_ADC2_Init();
   MX_ADC3_Init();
   MX_I2C1_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   /*===============Motor Init===================*/
   Motor_Init();
   Motor_Reset();
   HAL_TIM_Base_Start_IT(&htim2);
   /*==============================================*/
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+  enum person_pos pos = IDLE;
+  // LCD init
+    LCD_init();
 
+    	char test[] = "UART OK\r\n";
+    	HAL_UART_Transmit(&huart2, (uint8_t*)test, strlen(test), HAL_MAX_DELAY);
+
+
+  	// Event scheduler initialiser
+  	Event *head;
+  	Event *curr;
+
+  	EventInit(&head);
+  	curr = NULL;
+
+  	LCD_send_cmd(LCD_CLEAR);
+  	LCD_send_cmd(0x80);
+  	LCD_send_string("Initialising");
+  	HAL_Delay(1000);
+  	SetStartTime();
+
+  	  // RFID init
+  	printf("BEFORE PN532\r\n");
+
+  	if(!PN532_Init())
+  	{
+  		printf("PN532 ERROR\r\n");
+  	    Error_Handler();
+  	}
+
+  	printf("AFTER PN532\r\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  uint16_t LDR1_val = Read_LDR_PC4_LDR1();
-	  uint16_t LDR2_val = Read_LDR_PB1_LDR2();
+	  if (HAL_GPIO_ReadPin(GPIOA, SW1_Pin)) {
+		  unauth_alert_start();
+	  }
 
-	  printf("LDR 1: %d | LDR 2: %d\r\n", LDR1_val, LDR2_val); // Print in Mac Terminal --> Baud Rate: 115200
-	  // using LDR as a motion sensor
-	  // Case1: Entrance to Exit
-	  // State: Door Already Open in direction of entry
-	  // Trigger LDR1 then LDR2 (Setting)
-	  // Door Close
+	  if (HAL_GPIO_ReadPin(GPIOA, SW2_Pin)) {
+		  unauth_alert_end();
+	  }
 
-	  // example --> But wrong logic (Close only both LDRs are covered)
-	  if (LDR1_val < 500) {
-		  if (LDR2_val < 500) {
-			  Motor_SetPosition(CLOSE);
+	  if (unauth_flag && !buzzer_counter) {
+		  unauth_update_peripherals();
+	  }
+
+	  /* This is an FSM that determines a person's position in the doorway,
+	   * so that we can count incoming people. Alert security when the count
+	   * of incoming people exceeds the count of authorised access cards.
+	   */
+	  int s1 = ldr1_active();
+	  int s2 = ldr2_active();
+	  if (pos == IDLE) {
+		  if (s1) {
+			  pos = IN_APRCH;
+		  }
+		  if (s2) {
+			  pos = OUT_APRCH;
+		  }
+	  } else if (pos == IN_APRCH) {
+		  if (!s1) {
+			  pos = IDLE;
+		  }
+		  if (s2) {
+			  pos = IN_BLOCK;
+		  }
+	  } else if (pos == IN_BLOCK) {
+		  if (!s1) {
+			  pos = IN_THRU;
+		  }
+		  if (!s2) {
+			  pos = IN_APRCH;
+		  }
+	  } else if (pos == IN_THRU) {
+		  if (s1) {
+			  pos = IN_BLOCK;
+		  }
+		  if (!s2) {
+			  pos = IDLE;
+		  }
+	  } else if (pos == OUT_APRCH) {
+		  if (!s2) {
+			  pos = IDLE;
+		  }
+		  if (s1) {
+			  pos = OUT_BLOCK;
+		  }
+	  } else if (pos == OUT_BLOCK) {
+		  if (!s1) {
+			  pos = OUT_APRCH;
+		  }
+		  if (!s2) {
+			  pos = OUT_THRU;
+		  }
+	  } else {
+		  if (s2) {
+			  pos = OUT_BLOCK;
+		  }
+		  if (!s1) {
+			  pos = IDLE;
 		  }
 	  }
 
@@ -145,10 +288,11 @@ int main(void)
 	  /*==============================================*/
 	  // Change to NFC trigger Condition
 	  /*==============================================*/
-	  if (HAL_GPIO_ReadPin(GPIOA, SW2_Pin) == 1) {
-		  HAL_Delay(12);
-		  Motor_SetPosition(OPEN_ForEntrance);
-	  }
+//	  if (HAL_GPIO_ReadPin(GPIOA, SW2_Pin) == 1) {
+//		  HAL_Delay(12);
+//		  Motor_SetPosition(OPEN_ForEntrance);
+//	  }
+
 
 	  /*==============================================*/
 	  // Change to Motor Stopping Condition
@@ -157,6 +301,55 @@ int main(void)
 	    HAL_Delay(12);
 	    Motor_Stop();
 	  }
+
+	  /*==============================================*/
+	  // Authorisation check
+	  /*==============================================*/
+	  if (authLevel == AUTH_NONE) {
+		  Access_Check();
+		  HAL_Delay(100);
+	  }
+
+	  /*==============================================*/
+	  // Display management menu
+	  /*==============================================*/
+	  // && authLevel == AUTH_MANAGER
+//	  if (authorised == true) {
+//		  if (updateLCD) {
+//		          DisplayScreen(curr);
+//		          updateLCD = false;
+//		      }
+//	      ReadKeypad(&head, &curr);
+//	  }
+//		  printf("authorised\r\n");
+	  if (authLevel == AUTH_MANAGER) {
+//	    	  printf("open menu");
+		  if (updateLCD) {
+			  DisplayScreen(curr);
+			  updateLCD = false;
+		  }
+		  ReadKeypad(&head, &curr);
+	  } else if (authLevel == AUTH_DOOR) {
+		  Motor_SetPosition(OPEN_ForEntrance);
+		  printf("open door\r\n");
+
+		  doorOpen = true;
+		  doorOpenTime = HAL_GetTick();
+
+		  authLevel = AUTH_NONE;
+	  }
+
+	  printf("doorOpen=%d activeEvents=%d\r\n", doorOpen, activeEvents);
+
+	  if (doorOpen && !scheduledOpen) {
+	      if ((HAL_GetTick() - doorOpenTime) > 5000) {
+	          Motor_SetPosition(CLOSE);
+	          doorOpen = false;
+	      }
+	  }
+
+	  // Check events every loop
+	  CheckEvents(&head, &curr);
 
     /* USER CODE END WHILE */
 
@@ -204,12 +397,13 @@ void SystemClock_Config(void)
     Error_Handler();
   }
   PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_I2C1
-                              |RCC_PERIPHCLK_ADC12|RCC_PERIPHCLK_ADC34
-                              |RCC_PERIPHCLK_TIM2;
+                              |RCC_PERIPHCLK_TIM1|RCC_PERIPHCLK_ADC12
+                              |RCC_PERIPHCLK_ADC34|RCC_PERIPHCLK_TIM2;
   PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
   PeriphClkInit.Adc12ClockSelection = RCC_ADC12PLLCLK_DIV1;
   PeriphClkInit.Adc34ClockSelection = RCC_ADC34PLLCLK_DIV1;
   PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_HSI;
+  PeriphClkInit.Tim1ClockSelection = RCC_TIM1CLK_HCLK;
   PeriphClkInit.Tim2ClockSelection = RCC_TIM2CLK_HCLK;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
@@ -389,6 +583,86 @@ static void MX_I2C1_Init(void)
 }
 
 /**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 35;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 65535;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
+  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
+  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
+  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
+  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
+  sBreakDeadTimeConfig.BreakFilter = 0;
+  sBreakDeadTimeConfig.Break2State = TIM_BREAK2_DISABLE;
+  sBreakDeadTimeConfig.Break2Polarity = TIM_BREAK2POLARITY_HIGH;
+  sBreakDeadTimeConfig.Break2Filter = 0;
+  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
+  if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+  HAL_TIM_MspPostInit(&htim1);
+
+}
+
+/**
   * @brief TIM2 Initialization Function
   * @param None
   * @retval None
@@ -488,15 +762,15 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, SR_SCK_Pin|COILA_Pin|LCD_RW_Pin|COILC_Pin
+                          |LCD_D4_Pin|LCD_D5_Pin|LCD_D6_Pin|LCD_D7_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, LD2_Pin|COILB_Pin|LCD_RS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, COILA_Pin|LCD_RW_Pin|COILC_Pin|LCD_D4_Pin
-                          |LCD_D5_Pin|LCD_D6_Pin|LCD_D7_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, COILD_Pin|ROW1_Pin|ROW2_Pin|ROW3_Pin
-                          |ROW4_Pin|DATA_Pin|Latch_Pin, GPIO_PIN_RESET);
+                          |ROW4_Pin|SR_SER_Pin|SR_RCK_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LCD_E_GPIO_Port, LCD_E_Pin, GPIO_PIN_RESET);
@@ -506,6 +780,15 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : SR_SCK_Pin COILA_Pin LCD_RW_Pin COILC_Pin
+                           LCD_D4_Pin LCD_D5_Pin LCD_D6_Pin LCD_D7_Pin */
+  GPIO_InitStruct.Pin = SR_SCK_Pin|COILA_Pin|LCD_RW_Pin|COILC_Pin
+                          |LCD_D4_Pin|LCD_D5_Pin|LCD_D6_Pin|LCD_D7_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : SW4_Pin */
   GPIO_InitStruct.Pin = SW4_Pin;
@@ -526,15 +809,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : COILA_Pin LCD_RW_Pin COILC_Pin LCD_D4_Pin
-                           LCD_D5_Pin LCD_D6_Pin LCD_D7_Pin */
-  GPIO_InitStruct.Pin = COILA_Pin|LCD_RW_Pin|COILC_Pin|LCD_D4_Pin
-                          |LCD_D5_Pin|LCD_D6_Pin|LCD_D7_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
   /*Configure GPIO pin : SW3_Pin */
   GPIO_InitStruct.Pin = SW3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
@@ -542,9 +816,9 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(SW3_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : COILD_Pin ROW1_Pin ROW2_Pin ROW3_Pin
-                           ROW4_Pin DATA_Pin Latch_Pin */
+                           ROW4_Pin SR_SER_Pin SR_RCK_Pin */
   GPIO_InitStruct.Pin = COILD_Pin|ROW1_Pin|ROW2_Pin|ROW3_Pin
-                          |ROW4_Pin|DATA_Pin|Latch_Pin;
+                          |ROW4_Pin|SR_SER_Pin|SR_RCK_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -569,11 +843,19 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
+	/* Executes once every 2 milliseconds on TIM2 overflow. */
     if (htim->Instance == TIM2)
     {
     	Motor_MoveToTarget();
+    	/* buzzer_counter is used to update peripherals (see unauth_update_peripherals)
+    	 * once every 100 increments. That works out to 200 milliseconds.
+    	 */
+    	if (unauth_flag) {
+    		buzzer_counter = (buzzer_counter + 1) % 100;
+    	}
     }
 }
 /* USER CODE END 4 */

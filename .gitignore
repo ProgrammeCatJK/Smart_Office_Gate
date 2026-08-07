@@ -1,8 +1,11 @@
 # STM32CubeIDE build output
 Debug/
+
+# Project metadata
 .settings/
+*.launch
+.mxproject
 
 # macOS only
 .DS_Store
 .osx.project
-.settings/language.settings.xml
