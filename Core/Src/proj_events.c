@@ -21,6 +21,7 @@ typedef struct Event
 #include "proj_lcd.h"
 #include "proj_keypad.h"
 #include "motor.h"
+#include "proj_auth.h"
 
 extern bool scheduledOpen;
 int activeEvents = 0;
@@ -179,7 +180,7 @@ void ReadKeypad(Event **head, Event **curr) {
 			return;
 		} else if (button == DOOR_BUTTON) {
 			updateLCD = true;
-			authorised = false;
+			authLevel = AUTH_NONE;
 			authTime = HAL_GetTick();
 			LCD_send_cmd(LCD_CLEAR);
 			LCD_send_cmd(0x80);
@@ -190,7 +191,7 @@ void ReadKeypad(Event **head, Event **curr) {
 		    doorOpenTime = HAL_GetTick();
 			return;
 		} else if (button == EXIT_BUTTON) {
-			authorised = false;
+			authLevel = AUTH_NONE;
 			updateLCD = true;
 			authTime = HAL_GetTick();
 			LCD_send_cmd(LCD_CLEAR);

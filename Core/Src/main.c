@@ -58,7 +58,6 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-bool authorised = false;
 uint32_t authTime;
 bool updateLCD = true;
 
@@ -205,7 +204,7 @@ int main(void)
 	  /*==============================================*/
 	  // Authorisation check
 	  /*==============================================*/
-	  if(!authorised) {
+	  if (authLevel == AUTH_NONE) {
 		  Access_Check();
 		  HAL_Delay(100);
 	  }
@@ -221,25 +220,22 @@ int main(void)
 //		      }
 //	      ReadKeypad(&head, &curr);
 //	  }
-	  if (authorised) {
 //		  printf("authorised\r\n");
-	      if (authLevel == AUTH_MANAGER) {
+	  if (authLevel == AUTH_MANAGER) {
 //	    	  printf("open menu");
-	    	  if (updateLCD) {
-				  DisplayScreen(curr);
-				  updateLCD = false;
-			  }
-	          ReadKeypad(&head, &curr);
-	      } else if (authLevel == AUTH_DOOR) {
-			  Motor_SetPosition(OPEN_ForEntrance);
-		      printf("open door\r\n");
+		  if (updateLCD) {
+			  DisplayScreen(curr);
+			  updateLCD = false;
+		  }
+		  ReadKeypad(&head, &curr);
+	  } else if (authLevel == AUTH_DOOR) {
+		  Motor_SetPosition(OPEN_ForEntrance);
+		  printf("open door\r\n");
 
-		      doorOpen = true;
-		      doorOpenTime = HAL_GetTick();
+		  doorOpen = true;
+		  doorOpenTime = HAL_GetTick();
 
-		      authorised = false;
-		      authLevel = AUTH_NONE;
-	      }
+		  authLevel = AUTH_NONE;
 	  }
 
 	  printf("doorOpen=%d activeEvents=%d\r\n", doorOpen, activeEvents);

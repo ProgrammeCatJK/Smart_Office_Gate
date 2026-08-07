@@ -8,7 +8,6 @@
 #include "proj_auth.h"
 #include <string.h>
 
-extern bool authorised;
 extern uint32_t authTime;
 
 AuthLevel authLevel = AUTH_NONE;
@@ -217,7 +216,6 @@ void Access_Check(void) {
         printf("MANAGER CARD\r\n");
 
         authLevel = AUTH_MANAGER;
-        authorised = true;
         authTime = HAL_GetTick();
 
         return;
@@ -227,7 +225,6 @@ void Access_Check(void) {
         printf("DOOR CARD\r\n");
 
         authLevel = AUTH_DOOR;
-        authorised = true;
         authTime = HAL_GetTick();
 
         return;
