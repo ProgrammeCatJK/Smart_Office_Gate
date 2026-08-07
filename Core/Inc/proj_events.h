@@ -58,15 +58,15 @@ void DeleteEvent(Event **head, Event **curr);
 // Reads input from keypad and changes the list up/down
 void ReadKeypad(Event **head, Event **curr);
 
+// Reads input from keypad for date, time and duration
 bool GetTimeFromKeypad(Time *time);
-
 bool GetDateFromKeypad(Time *time);
-
 uint32_t GetDurationFromKeypad(void);
 
-int GetStateFromKeypad();
-
+// Display current event on the lcd
 void DisplayScreen(Event *curr);
+
+// Handler for the events set
 void CheckEvents(Event **head, Event **curr);
 
 // Conversion
@@ -80,8 +80,10 @@ bool IsValidTime(Time time);
 void DisplayTime(Time time);
 int CompareTime(Time a, Time b);
 
+// Initialiser for the start date/time
 void SetStartTime(void);
 
+// Calculates when the next event is
 Time AddSeconds(Time start, uint32_t seconds);
 
 #endif /* INC_PROJ_EVENTS_H_ */

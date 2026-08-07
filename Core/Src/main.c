@@ -77,6 +77,8 @@ bool updateLCD = true;
 bool doorOpen = false;
 uint32_t doorOpenTime;
 bool scheduledOpen = false;
+
+uint32_t auth_count = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
