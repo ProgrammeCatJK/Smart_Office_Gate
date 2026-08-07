@@ -142,27 +142,24 @@ void ReadKeypad(Event **head, Event **curr) {
 			Time eventTime;
 			Time endTime;
 			uint32_t duration;
-			LCD_send_cmd(LCD_CLEAR);
 			LCD_send_cmd(0x80);
-			LCD_send_string("Add Event");
+			LCD_send_string("Add Event       ");
 			LCD_send_cmd(0xC0);
-			LCD_send_string("Enter date:");
+			LCD_send_string("Enter date:     ");
 			if (!GetDateFromKeypad(&eventTime)) {
 				updateLCD = true;
 			    return;
 			}
 
-			LCD_send_cmd(LCD_CLEAR);
 			LCD_send_cmd(0x80);
-			LCD_send_string("Enter time:");
+			LCD_send_string("Enter time:     ");
 			if (!GetTimeFromKeypad(&eventTime)) {
 				updateLCD = true;
 				return;
 			}
 
-			LCD_send_cmd(LCD_CLEAR);
 			LCD_send_cmd(0x80);
-			LCD_send_string("Enter duration:");
+			LCD_send_string("Enter duration: ");
 			duration = GetDurationFromKeypad();
 			if (duration == 0) {
 				updateLCD = true;
@@ -251,11 +248,38 @@ bool GetTimeFromKeypad(Time *time) {
                 LCD_send_cmd(LCD_CLEAR);
                 LCD_send_cmd(0x80);
                 LCD_send_string("Invalid Time");
-                HAL_Delay(1000);
+                HAL_Delay(500);
                 return false;
             }
 
             return true;
+        } else if (key == DEL_BUTTON) {
+        	if (index > 0) {
+        	        digits[--index] = '\0';
+
+        	        LCD_send_cmd(0x80);
+        	        LCD_send_string("                ");
+        	        LCD_send_cmd(0x80);
+
+        	        if (index <= 2) {
+        	            snprintf(buffer, sizeof(buffer), "%s", digits);
+        	        }
+        	        else if (index <= 4) {
+        	            snprintf(buffer, sizeof(buffer), "%c%c:%s",
+        	                     digits[0], digits[1], &digits[2]);
+        	        }
+        	        else {
+        	            snprintf(buffer, sizeof(buffer), "%c%c:%c%c:%s",
+        	                     digits[0], digits[1],
+        	                     digits[2], digits[3],
+        	                     &digits[4]);
+        	        }
+
+        	        LCD_send_string(buffer);
+
+        	        LCD_send_cmd(0xC0);
+        	        LCD_send_string("# to confirm");
+        	    }
         } else if (key == '*') {
             return false;
         }
@@ -299,8 +323,7 @@ bool GetDateFromKeypad(Time *time) {
             time->day   = (digits[0] - '0') * 10 + (digits[1] - '0');
             time->month = (digits[2] - '0') * 10 + (digits[3] - '0');
 
-            if (time->day < 1 || time->day > 31 ||
-                time->month < 1 || time->month > 12) {
+            if (IsValidTime(*time)) {
 
                 LCD_send_cmd(LCD_CLEAR);
                 LCD_send_cmd(0x80);
@@ -310,8 +333,26 @@ bool GetDateFromKeypad(Time *time) {
             }
 
             return true;
-        }
-        else if (key == '*') {
+        } else if (key == DEL_BUTTON) {
+        	if (index > 0) {
+        	        digits[--index] = '\0';
+                    if (index <= 2) {
+                        snprintf(buffer, sizeof(buffer), "%s", digits);
+                    } else {
+                        snprintf(buffer, sizeof(buffer), "%c%c/%s",
+                                 digits[0], digits[1], &digits[2]);
+                    }
+
+                    LCD_send_cmd(0x80);
+                    LCD_send_string("                ");
+                    LCD_send_cmd(0x80);
+                    LCD_send_string(buffer);
+
+                    LCD_send_cmd(0xC0);
+                    LCD_send_string("# to confirm");
+
+        	    }
+        } else if (key == '*') {
             return false;
         }
     }
@@ -364,11 +405,38 @@ uint32_t GetDurationFromKeypad(void) {
                 LCD_send_cmd(LCD_CLEAR);
                 LCD_send_cmd(0x80);
                 LCD_send_string("Invalid Duration");
-                HAL_Delay(1000);
+                HAL_Delay(500);
                 continue;
             }
 
             return (hours * 3600UL) + (minutes * 60UL) + seconds;
+        } else if (key == DEL_BUTTON) {
+        	if (index > 0) {
+        	        digits[--index] = '\0';
+
+        	        LCD_send_cmd(0x80);
+        	        LCD_send_string("                ");
+        	        LCD_send_cmd(0x80);
+
+        	        if (index <= 2) {
+        	            snprintf(buffer, sizeof(buffer), "%s", digits);
+        	        }
+        	        else if (index <= 4) {
+        	            snprintf(buffer, sizeof(buffer), "%c%c:%s",
+        	                     digits[0], digits[1], &digits[2]);
+        	        }
+        	        else {
+        	            snprintf(buffer, sizeof(buffer), "%c%c:%c%c:%s",
+        	                     digits[0], digits[1],
+        	                     digits[2], digits[3],
+        	                     &digits[4]);
+        	        }
+
+        	        LCD_send_string(buffer);
+
+        	        LCD_send_cmd(0xC0);
+        	        LCD_send_string("# to confirm");
+        	    }
         } else if (key == '*') {
             return 0;
         }
