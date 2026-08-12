@@ -85,11 +85,8 @@ int unauth_flag = 0;
 uint32_t authTime;
 bool updateLCD = true;
 
-bool doorOpen = false;
-uint32_t doorOpenTime;
-bool scheduledOpen = false;
-
 uint32_t auth_count = 0;
+int enter_count = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -231,6 +228,7 @@ int main(void)
   int dopen_pending = 0;
   uint32_t dopen_time;
   int keypad_auth = 0;
+  int event_count = 0;
   while (1)
   {
 	  int s1 = ldr1_active();
@@ -238,7 +236,10 @@ int main(void)
 
 	  /* Door FSM. */
 	  if (dstate == CLOSED) {
-		  if (dopen_pending) {
+		  if (dopen_pending || event_count) {
+			  if (dopen_pending) {
+				  auth_count++;
+			  }
 			  dstate = IN_OPEN;
 			  Motor_SetPosition(OPEN_ForEntrance);
 		  } else if (s2 && !s1) {
@@ -248,7 +249,9 @@ int main(void)
 		  dopen_time = TIM6->CNT;
 	  } else if (dstate == IN_OPEN) {
 		  /* Might tweak DOPEN_PERIOD based on how long the motor takes to rotate. */
-		  if ((uint32_t)(TIM6->CNT - dopen_time) >= DOPEN_PERIOD) {
+		  if (event_count) {
+			  dopen_time = TIM6->CNT;
+		  } else if ((uint32_t)(TIM6->CNT - dopen_time) >= DOPEN_PERIOD) {
 			  dstate = IN_CLOSE;
 			  Motor_SetPosition(CLOSE);
 		  }
@@ -256,8 +259,10 @@ int main(void)
 		  if (s1 || s2) {
 			  dstate = IN_OPEN;
 			  Motor_SetPosition(OPEN_ForEntrance);
+			  dopen_time = TIM6->CNT;
 		  } else if (DoorIsClosed()) {
 			  dstate = CLOSED;
+			  auth_count = 0;
 		  }
 	  } else if (dstate == OUT_OPEN) {
 		  if ((uint32_t)(TIM6->CNT - dopen_time) >= DOPEN_PERIOD) {
@@ -268,13 +273,11 @@ int main(void)
 		  if (s1 || s2) {
 			  dstate = OUT_OPEN;
 			  Motor_SetPosition(OPEN_ForExit);
+			  dopen_time = TIM6->CNT;
 		  } else if (DoorIsClosed()) {
 			  dstate = CLOSED;
+			  auth_count = 0;
 		  }
-	  }
-
-	  if (HAL_GPIO_ReadPin(GPIOA, SW1_Pin)) {
-		  unauth_alert_start();
 	  }
 
 	  if (HAL_GPIO_ReadPin(GPIOA, SW2_Pin)) {
@@ -315,6 +318,13 @@ int main(void)
 			  pos = IN_BLOCK;
 		  }
 		  if (!s2) {
+			  enter_count++;
+			  if (auth_count < enter_count) {
+				  unauth_alert_start();
+			  }
+			  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, 1);
+			  HAL_Delay(1000);
+			  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, 0);
 			  pos = IDLE;
 		  }
 	  } else if (pos == OUT_APRCH) {
@@ -384,8 +394,6 @@ int main(void)
 //		  authLevel = AUTH_NONE;
 //	  }
 
-	  printf("doorOpen=%d activeEvents=%d\r\n", doorOpen, activeEvents);
-
 //	  if (doorOpen && !scheduledOpen) {
 //	      if ((HAL_GetTick() - doorOpenTime) > 5000) {
 //	          Motor_SetPosition(CLOSE);
@@ -394,7 +402,7 @@ int main(void)
 //	  }
 
 	  // Check events every loop
-	  CheckEvents(&head, &curr);
+	  CheckEvents(&head, &curr, &event_count);
 
     /* USER CODE END WHILE */
 

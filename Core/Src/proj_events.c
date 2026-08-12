@@ -22,9 +22,10 @@ typedef struct Event
 #include "proj_keypad.h"
 #include "motor.h"
 #include "proj_auth.h"
+#include <stdbool.h>
 
-extern bool scheduledOpen;
-int activeEvents = 0;
+#define EVENT_START true
+#define EVENT_END false
 
 // Creates a sorted doubly linked list
 void EventInit(Event **head) {
@@ -169,7 +170,7 @@ void ReadKeypad(Event **head, Event **curr, int *dopen_pending_ptr, int *keypad_
 			// Add in start and end
 			AddEvent(head, eventTime, duration, EVENT_START);
 			endTime = AddSeconds(eventTime, duration);
-			AddEvent(head, endTime, 0, EVENT_START);
+			AddEvent(head, endTime, 0, EVENT_END);
 
 			// Display first item in list
 			*curr = *head;
@@ -184,8 +185,6 @@ void ReadKeypad(Event **head, Event **curr, int *dopen_pending_ptr, int *keypad_
 			LCD_send_string("Opening door");
 
 			Motor_SetPosition(OPEN_ForEntrance);
-			doorOpen = true;
-		    doorOpenTime = HAL_GetTick();
 		    HAL_Delay(500);
 			LCD_send_cmd(LCD_CLEAR);
 			return;
@@ -470,7 +469,7 @@ void DisplayScreen(Event *curr) {
 }
 
 // Handler for the events set
-void CheckEvents(Event **head, Event **curr) {
+void CheckEvents(Event **head, Event **curr, int *event_count_ptr) {
 	uint32_t elapsedSeconds = (HAL_GetTick() - startTick) / 1000;
 	Time currentTime = AddSeconds(startTime, elapsedSeconds);
 
@@ -479,19 +478,9 @@ void CheckEvents(Event **head, Event **curr) {
 
         // Perform event action
         if (temp->startEvent) {
-            activeEvents++;
-            if (activeEvents == 1) {
-                scheduledOpen = true;
-                Motor_SetPosition(OPEN_ForEntrance);
-            }
+            (*event_count_ptr)++;
         } else {
-            activeEvents--;
-            if (activeEvents == 0) {
-                scheduledOpen = false;
-                if (!doorOpen) {   // no manual open active
-                    Motor_SetPosition(CLOSE);
-                }
-            }
+        	(*event_count_ptr)--;
         }
 
         // Remove event from list
