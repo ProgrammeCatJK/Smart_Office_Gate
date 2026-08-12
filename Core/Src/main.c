@@ -62,6 +62,7 @@ enum door_state {
 /* USER CODE BEGIN PM */
 #define LOW_FREQ_ARR 6078
 #define HIGH_FREQ_ARR 3039
+#define DOPEN_PERIOD 7690u
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -191,6 +192,7 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim2);
   /*==============================================*/
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+  HAL_TIM_Base_Start(&htim6);
   enum person_pos pos = IDLE;
   // LCD init
     LCD_init();
@@ -226,14 +228,51 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  int dopen_pending = 0;
+  uint32_t dopen_time;
+  int keypad_auth = 0;
   while (1)
   {
+	  int s1 = ldr1_active();
+	  int s2 = ldr2_active();
+
 	  /* Door FSM. */
 	  if (dstate == CLOSED) {
-		  if (authLevel != AUTH_NONE) {
-
+		  if (dopen_pending) {
+			  dstate = IN_OPEN;
+			  Motor_SetPosition(OPEN_ForEntrance);
+		  } else if (s2 && !s1) {
+			  dstate = OUT_OPEN;
+			  Motor_SetPosition(OPEN_ForExit);
+		  }
+		  dopen_time = TIM6->CNT;
+	  } else if (dstate == IN_OPEN) {
+		  /* Might tweak DOPEN_PERIOD based on how long the motor takes to rotate. */
+		  if ((uint32_t)(TIM6->CNT - dopen_time) >= DOPEN_PERIOD) {
+			  dstate = IN_CLOSE;
+			  Motor_SetPosition(CLOSE);
+		  }
+	  } else if (dstate == IN_CLOSE) {
+		  if (s1 || s2) {
+			  dstate = IN_OPEN;
+			  Motor_SetPosition(OPEN_ForEntrance);
+		  } else if (DoorIsClosed()) {
+			  dstate = CLOSED;
+		  }
+	  } else if (dstate == OUT_OPEN) {
+		  if ((uint32_t)(TIM6->CNT - dopen_time) >= DOPEN_PERIOD) {
+			  dstate = OUT_CLOSE;
+			  Motor_SetPosition(CLOSE);
+		  }
+	  } else { /* dstate == OUT_CLOSE */
+		  if (s1 || s2) {
+			  dstate = OUT_OPEN;
+			  Motor_SetPosition(OPEN_ForExit);
+		  } else if (DoorIsClosed()) {
+			  dstate = CLOSED;
 		  }
 	  }
+
 	  if (HAL_GPIO_ReadPin(GPIOA, SW1_Pin)) {
 		  unauth_alert_start();
 	  }
@@ -250,8 +289,6 @@ int main(void)
 	   * so that we can count incoming people. Alert security when the count
 	   * of incoming people exceeds the count of authorised access cards.
 	   */
-	  int s1 = ldr1_active();
-	  int s2 = ldr2_active();
 	  if (pos == IDLE) {
 		  if (s1) {
 			  pos = IN_APRCH;
@@ -317,46 +354,44 @@ int main(void)
 	  /*==============================================*/
 	  // Change to Motor Stopping Condition
 	  /*==============================================*/
-	  if (HAL_GPIO_ReadPin(GPIOA, SW1_Pin) == 1) {
-	    HAL_Delay(12);
-	    Motor_Stop();
-	  }
+//	  if (HAL_GPIO_ReadPin(GPIOA, SW1_Pin) == 1) {
+//	    HAL_Delay(12);
+//	    Motor_Stop();
+//	  }
 
-	  /*==============================================*/
-	  // Authorisation check
-	  /*==============================================*/
-	  if (authLevel == AUTH_NONE) {
-		  Access_Check();
-		  HAL_Delay(100);
-	  }
 
-	  /*==============================================*/
-	  // Display management menu
-	  /*==============================================*/
-	  if (authLevel == AUTH_MANAGER) {
+
+
+	  if (keypad_auth) {
 		  if (updateLCD) {
+			  /* Display management menu. */
 			  DisplayScreen(curr);
 			  updateLCD = false;
 		  }
-		  ReadKeypad(&head, &curr);
-	  } else if (authLevel == AUTH_DOOR) { /* Handled in door FSM now. */
-		  Motor_SetPosition(OPEN_ForEntrance);
-		  printf("open door\r\n");
-
-		  doorOpen = true;
-		  doorOpenTime = HAL_GetTick();
-
-		  authLevel = AUTH_NONE;
+		  ReadKeypad(&head, &curr, &dopen_pending, &keypad_auth);
+	  } else {
+		  /* Authorisation check. */
+		  Access_Check(&dopen_pending, &keypad_auth);
+		  HAL_Delay(100);
 	  }
+//	  else if (authLevel == AUTH_DOOR) { /* Handled in door FSM now. */
+//		  Motor_SetPosition(OPEN_ForEntrance);
+//		  printf("open door\r\n");
+//
+//		  doorOpen = true;
+//		  doorOpenTime = HAL_GetTick();
+//
+//		  authLevel = AUTH_NONE;
+//	  }
 
 	  printf("doorOpen=%d activeEvents=%d\r\n", doorOpen, activeEvents);
 
-	  if (doorOpen && !scheduledOpen) {
-	      if ((HAL_GetTick() - doorOpenTime) > 5000) {
-	          Motor_SetPosition(CLOSE);
-	          doorOpen = false;
-	      }
-	  }
+//	  if (doorOpen && !scheduledOpen) {
+//	      if ((HAL_GetTick() - doorOpenTime) > 5000) {
+//	          Motor_SetPosition(CLOSE);
+//	          doorOpen = false;
+//	      }
+//	  }
 
 	  // Check events every loop
 	  CheckEvents(&head, &curr);

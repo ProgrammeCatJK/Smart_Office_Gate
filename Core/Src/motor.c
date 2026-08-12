@@ -120,3 +120,6 @@ void Motor_MoveToTarget() {
 
 }
 
+int DoorIsClosed(void) {
+	return CurrentTick == CLOSE;
+}

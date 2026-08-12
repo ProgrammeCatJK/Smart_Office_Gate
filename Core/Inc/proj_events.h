@@ -74,7 +74,7 @@ int AddEvent(Event **head, Time time, uint32_t duration, bool startEvent);
 void DeleteEvent(Event **head, Event **curr);
 
 // Reads input from keypad and changes the list up/down
-void ReadKeypad(Event **head, Event **curr);
+void ReadKeypad(Event **head, Event **curr, int *dopen_pending_ptr, int *keypad_auth_ptr);
 
 // Reads input from keypad for date, time and duration
 bool GetTimeFromKeypad(Time *time);

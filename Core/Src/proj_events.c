@@ -110,7 +110,7 @@ void DeleteEvent(Event **head, Event **curr) {
 }
 
 // Reads input from keypad and changes the list up/down
-void ReadKeypad(Event **head, Event **curr) {
+void ReadKeypad(Event **head, Event **curr, int *dopen_pending_ptr, int *keypad_auth_ptr) {
 	while (1) {
 		char button = Keypad_GetKey();
 
@@ -176,8 +176,8 @@ void ReadKeypad(Event **head, Event **curr) {
 			updateLCD = true;
 			return;
 		} else if (button == DOOR_BUTTON) {
+			*dopen_pending_ptr = 1;
 			updateLCD = true;
-			authLevel = AUTH_NONE;
 			authTime = HAL_GetTick();
 			LCD_send_cmd(LCD_CLEAR);
 			LCD_send_cmd(LCD_ROW_1);
@@ -190,7 +190,7 @@ void ReadKeypad(Event **head, Event **curr) {
 			LCD_send_cmd(LCD_CLEAR);
 			return;
 		} else if (button == EXIT_BUTTON) {
-			authLevel = AUTH_NONE;
+			*keypad_auth_ptr = 0;
 			updateLCD = true;
 			authTime = HAL_GetTick();
 			LCD_send_cmd(LCD_CLEAR);
