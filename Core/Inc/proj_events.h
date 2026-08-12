@@ -10,7 +10,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
-#include "stdbool.h"
+#include <stdbool.h>
 
 typedef struct {
 	uint8_t month;
@@ -36,8 +36,26 @@ typedef struct Event {
 #define EXIT_BUTTON 'C'
 #define DEL_BUTTON 'D'
 #define CONFIRM '#'
-#define LOCKED 1
-#define UNLOCKED 0
+#define BACK_BUTTON '*'
+
+#define LCD_ROW_1 0x80
+#define LCD_ROW_2 0xC0
+#define LCD_LINE_LENGTH 16
+#define LCD_CLEAR_LINE "                "
+
+#define EVENT_START true
+#define EVENT_END false
+
+#define TIME_DIGITS_LENGTH        6
+#define DATE_DIGITS_LENGTH        4
+
+#define MAX_HOUR                  23
+#define MAX_MINUTE                59
+#define MAX_SECOND                59
+
+#define MAX_DAY                   31
+#define MAX_MONTH                 12
+
 
 static Time startTime = {1,1,0,0,0};
 static uint32_t startTick = 0;
@@ -58,15 +76,15 @@ void DeleteEvent(Event **head, Event **curr);
 // Reads input from keypad and changes the list up/down
 void ReadKeypad(Event **head, Event **curr);
 
+// Reads input from keypad for date, time and duration
 bool GetTimeFromKeypad(Time *time);
-
 bool GetDateFromKeypad(Time *time);
-
 uint32_t GetDurationFromKeypad(void);
 
-int GetStateFromKeypad();
-
+// Display current event on the lcd
 void DisplayScreen(Event *curr);
+
+// Handler for the events set
 void CheckEvents(Event **head, Event **curr);
 
 // Conversion
@@ -80,8 +98,10 @@ bool IsValidTime(Time time);
 void DisplayTime(Time time);
 int CompareTime(Time a, Time b);
 
+// Initialiser for the start date/time
 void SetStartTime(void);
 
+// Calculates when the next event is
 Time AddSeconds(Time start, uint32_t seconds);
 
 #endif /* INC_PROJ_EVENTS_H_ */

@@ -35,13 +35,10 @@ const char keypad[4][4] =
     {'*','0','#','D'}
 };
 
-char Keypad_GetKey(void)
-{
-    for(int row = 0; row < 4; row++)
-    {
+char Keypad_GetKey(void) {
+    for (int row = 0; row < 4; row++) {
         // Set all rows HIGH
-        for(int i = 0; i < 4; i++)
-        {
+        for (int i = 0; i < 4; i++) {
             HAL_GPIO_WritePin(ROW_PORT[i], ROW_PIN[i], GPIO_PIN_SET);
         }
 
@@ -51,21 +48,22 @@ char Keypad_GetKey(void)
         HAL_Delay(1);
 
         // Check each column
-        for(int col = 0; col < 4; col++)
-        {
-            if(HAL_GPIO_ReadPin(COL_PORT[col], COL_PIN[col]) == GPIO_PIN_RESET)
-            {
+        for (int col = 0; col < 4; col++) {
+            if (HAL_GPIO_ReadPin(COL_PORT[col], COL_PIN[col]) == GPIO_PIN_RESET) {
                 // Debounce
-                HAL_Delay(20);
+                HAL_Delay(5);
 
-                while(HAL_GPIO_ReadPin(COL_PORT[col], COL_PIN[col]) == GPIO_PIN_RESET);
+//                while(HAL_GPIO_ReadPin(COL_PORT[col], COL_PIN[col]) == GPIO_PIN_RESET);
+//
+//                HAL_Delay(5);
+//
+//                return keypad[row][col];
 
-                HAL_Delay(20);
-
-                return keypad[row][col];
+                if (HAL_GPIO_ReadPin(COL_PORT[col], COL_PIN[col]) == GPIO_PIN_RESET) {
+                    return keypad[row][col];
+                }
             }
         }
     }
-
     return '\0';    // No key pressed
 }
