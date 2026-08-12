@@ -43,9 +43,6 @@ typedef struct Event {
 #define LCD_LINE_LENGTH 16
 #define LCD_CLEAR_LINE "                "
 
-#define EVENT_START true
-#define EVENT_END false
-
 #define TIME_DIGITS_LENGTH        6
 #define DATE_DIGITS_LENGTH        4
 
@@ -59,10 +56,7 @@ typedef struct Event {
 
 static Time startTime = {1,1,0,0,0};
 static uint32_t startTick = 0;
-extern int activeEvents;
 extern uint32_t authTime;
-extern bool doorOpen;
-extern uint32_t doorOpenTime;
 
 // Creates a sorted doubly linked list
 void EventInit(Event **head);
@@ -85,7 +79,7 @@ uint32_t GetDurationFromKeypad(void);
 void DisplayScreen(Event *curr);
 
 // Handler for the events set
-void CheckEvents(Event **head, Event **curr);
+void CheckEvents(Event **head, Event **curr, int *event_count_ptr);
 
 // Conversion
 uint32_t HMSToSeconds(Time time);
