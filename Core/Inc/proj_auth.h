@@ -16,13 +16,6 @@
 
 #define UID_LEN 4
 
-typedef enum {
-    AUTH_NONE = 0,
-    AUTH_DOOR,
-    AUTH_MANAGER
-} AuthLevel;
-
-extern AuthLevel authLevel;
 extern uint8_t managerUID[UID_LEN];
 extern uint8_t doorUID[UID_LEN];
 extern UART_HandleTypeDef huart2;
@@ -70,7 +63,7 @@ bool PN532_ReadResponse(uint8_t *buffer, uint8_t length);
 /*
  * Application functions
  */
-void Access_Check(void);
+void Access_Check(int *dopen_pending_ptr, int *keypad_auth_ptr);
 bool UID_Match(uint8_t *uid, uint8_t *stored);
 
 #endif /* INC_PROJ_AUTH_H_ */

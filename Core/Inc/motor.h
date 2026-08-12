@@ -25,5 +25,6 @@ void Motor_MoveToTarget();
 void Motor_Stop();
 void Motor_ManualSetLocation();
 void Motor_SetPosition(int16_t position);
+int DoorIsClosed(void);
 /*============================================*/
 #endif /* MOTOR_H_ */
