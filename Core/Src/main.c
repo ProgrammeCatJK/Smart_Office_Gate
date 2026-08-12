@@ -48,6 +48,14 @@ enum person_pos {
 	OUT_BLOCK,
 	OUT_THRU
 };
+
+enum door_state {
+	CLOSED,
+	IN_OPEN,
+	IN_CLOSE,
+	OUT_OPEN,
+	OUT_CLOSE
+};
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -69,6 +77,7 @@ TIM_HandleTypeDef htim6;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+enum door_state dstate = CLOSED;
 int buzzer_counter = 0;
 int unauth_flag = 0;
 
@@ -217,6 +226,12 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  /* Door FSM. */
+	  if (dstate == CLOSED) {
+		  if (authLevel != AUTH_NONE) {
+
+		  }
+	  }
 	  if (HAL_GPIO_ReadPin(GPIOA, SW1_Pin)) {
 		  unauth_alert_start();
 	  }
@@ -332,7 +347,7 @@ int main(void)
 			  updateLCD = false;
 		  }
 		  ReadKeypad(&head, &curr);
-	  } else if (authLevel == AUTH_DOOR) {
+	  } else if (authLevel == AUTH_DOOR) { /* Handled in door FSM now. */
 		  Motor_SetPosition(OPEN_ForEntrance);
 		  printf("open door\r\n");
 
