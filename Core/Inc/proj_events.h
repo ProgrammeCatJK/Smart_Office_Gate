@@ -10,7 +10,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
-#include "stdbool.h"
+#include <stdbool.h>
 
 typedef struct {
 	uint8_t month;
@@ -36,8 +36,26 @@ typedef struct Event {
 #define EXIT_BUTTON 'C'
 #define DEL_BUTTON 'D'
 #define CONFIRM '#'
-#define LOCKED 1
-#define UNLOCKED 0
+#define BACK_BUTTON '*'
+
+#define LCD_ROW_1 0x80
+#define LCD_ROW_2 0xC0
+#define LCD_LINE_LENGTH 16
+#define LCD_CLEAR_LINE "                "
+
+#define EVENT_START true
+#define EVENT_END false
+
+#define TIME_DIGITS_LENGTH        6
+#define DATE_DIGITS_LENGTH        4
+
+#define MAX_HOUR                  23
+#define MAX_MINUTE                59
+#define MAX_SECOND                59
+
+#define MAX_DAY                   31
+#define MAX_MONTH                 12
+
 
 static Time startTime = {1,1,0,0,0};
 static uint32_t startTick = 0;

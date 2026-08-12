@@ -186,8 +186,8 @@ int main(void)
   // LCD init
     LCD_init();
 
-    	char test[] = "UART OK\r\n";
-    	HAL_UART_Transmit(&huart2, (uint8_t*)test, strlen(test), HAL_MAX_DELAY);
+	char test[] = "UART OK\r\n";
+	HAL_UART_Transmit(&huart2, (uint8_t*)test, strlen(test), HAL_MAX_DELAY);
 
 
   	// Event scheduler initialiser
@@ -198,7 +198,7 @@ int main(void)
   	curr = NULL;
 
   	LCD_send_cmd(LCD_CLEAR);
-  	LCD_send_cmd(0x80);
+  	LCD_send_cmd(LCD_ROW_1);
   	LCD_send_string("Initialising");
   	HAL_Delay(1000);
   	SetStartTime();
@@ -318,17 +318,7 @@ int main(void)
 	  /*==============================================*/
 	  // Display management menu
 	  /*==============================================*/
-	  // && authLevel == AUTH_MANAGER
-//	  if (authorised == true) {
-//		  if (updateLCD) {
-//		          DisplayScreen(curr);
-//		          updateLCD = false;
-//		      }
-//	      ReadKeypad(&head, &curr);
-//	  }
-//		  printf("authorised\r\n");
 	  if (authLevel == AUTH_MANAGER) {
-//	    	  printf("open menu");
 		  if (updateLCD) {
 			  DisplayScreen(curr);
 			  updateLCD = false;
