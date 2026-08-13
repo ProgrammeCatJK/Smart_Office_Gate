@@ -261,6 +261,7 @@ int main(void)
 			  Motor_SetPosition(OPEN_ForEntrance);
 			  dopen_time = TIM6->CNT;
 		  } else if (DoorIsClosed()) {
+			  dopen_pending = 0;
 			  dstate = CLOSED;
 			  auth_count = 0;
 		  }
@@ -275,6 +276,7 @@ int main(void)
 			  Motor_SetPosition(OPEN_ForExit);
 			  dopen_time = TIM6->CNT;
 		  } else if (DoorIsClosed()) {
+			  dopen_pending = 0;
 			  dstate = CLOSED;
 			  auth_count = 0;
 		  }
