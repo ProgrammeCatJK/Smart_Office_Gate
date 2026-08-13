@@ -17,6 +17,7 @@ typedef struct Event
 } Event;
 */
 
+#include "main.h"
 #include "proj_events.h"
 #include "proj_lcd.h"
 #include "proj_keypad.h"
@@ -111,7 +112,7 @@ void DeleteEvent(Event **head, Event **curr) {
 }
 
 // Reads input from keypad and changes the list up/down
-void ReadKeypad(Event **head, Event **curr, int *dopen_pending_ptr, int *keypad_auth_ptr) {
+void ReadKeypad(Event **head, Event **curr, int *dopen_pending_ptr, int *keypad_auth_ptr, int *auth_count_ptr, uint32_t *dopen_time_ptr) {
 	while (1) {
 		char button = Keypad_GetKey();
 
@@ -178,23 +179,23 @@ void ReadKeypad(Event **head, Event **curr, int *dopen_pending_ptr, int *keypad_
 			return;
 		} else if (button == DOOR_BUTTON) {
 			*dopen_pending_ptr = 1;
+			*keypad_auth_ptr = 0;
+			(*auth_count_ptr)++;
+			*dopen_time_ptr = TIM6->CNT;
 			updateLCD = true;
-			authTime = HAL_GetTick();
 			LCD_send_cmd(LCD_CLEAR);
-			LCD_send_cmd(LCD_ROW_1);
 			LCD_send_string("Opening door");
-
-			Motor_SetPosition(OPEN_ForEntrance);
+			LCD_send_cmd(LCD_ROW_2);
+			LCD_send_string("Quitting...");
 		    HAL_Delay(500);
 			LCD_send_cmd(LCD_CLEAR);
 			return;
 		} else if (button == EXIT_BUTTON) {
 			*keypad_auth_ptr = 0;
+			*dopen_time_ptr = TIM6->CNT;
 			updateLCD = true;
-			authTime = HAL_GetTick();
 			LCD_send_cmd(LCD_CLEAR);
-			LCD_send_cmd(LCD_ROW_1);
-			LCD_send_string("Exiting menu");
+			LCD_send_string("Quitting...");
 			HAL_Delay(500);
 			LCD_send_cmd(LCD_CLEAR);
 			return;

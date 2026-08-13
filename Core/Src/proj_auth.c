@@ -8,7 +8,6 @@
 #include "proj_auth.h"
 #include <string.h>
 
-extern uint32_t authTime;
 
 uint8_t managerUID[UID_LEN] = { 0x93, 0x18, 0x26, 0x07 };
 uint8_t doorUID[UID_LEN] = { 0x8E, 0xF8, 0x09, 0x07 };
@@ -190,7 +189,7 @@ bool UID_Match(uint8_t *uid, uint8_t *stored) {
     return true;
 }
 
-void Access_Check(int *dopen_pending_ptr, int *keypad_auth_ptr) {
+void Access_Check(int *dopen_pending_ptr, int *keypad_auth_ptr, int *auth_count_ptr) {
     uint8_t uid[7];
     uint8_t uidLength = 0;
 
@@ -214,8 +213,6 @@ void Access_Check(int *dopen_pending_ptr, int *keypad_auth_ptr) {
     if (UID_Match(uid, managerUID)) {
         printf("MANAGER CARD\r\n");
 
-        authTime = HAL_GetTick();
-
         *keypad_auth_ptr = 1;
 
         return;
@@ -224,9 +221,8 @@ void Access_Check(int *dopen_pending_ptr, int *keypad_auth_ptr) {
     if (UID_Match(uid, doorUID)) {
         printf("DOOR CARD\r\n");
 
-        authTime = HAL_GetTick();
-
         *dopen_pending_ptr = 1;
+        (*auth_count_ptr)++;
 
         return;
     }
