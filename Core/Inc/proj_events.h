@@ -56,7 +56,6 @@ typedef struct Event {
 
 static Time startTime = {1,1,0,0,0};
 static uint32_t startTick = 0;
-extern uint32_t authTime;
 
 // Creates a sorted doubly linked list
 void EventInit(Event **head);
@@ -68,7 +67,7 @@ int AddEvent(Event **head, Time time, uint32_t duration, bool startEvent);
 void DeleteEvent(Event **head, Event **curr);
 
 // Reads input from keypad and changes the list up/down
-void ReadKeypad(Event **head, Event **curr, int *dopen_pending_ptr, int *keypad_auth_ptr);
+void ReadKeypad(Event **head, Event **curr, int *dopen_pending_ptr, int *keypad_auth_ptr, int *auth_count_ptr, uint32_t *dopen_time_ptr);
 
 // Reads input from keypad for date, time and duration
 bool GetTimeFromKeypad(Time *time);

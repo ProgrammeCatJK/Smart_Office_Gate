@@ -61,6 +61,7 @@ int _write(int file, char *ptr, int len);
 /* Private defines -----------------------------------------------------------*/
 #define B1_Pin GPIO_PIN_13
 #define B1_GPIO_Port GPIOC
+#define B1_EXTI_IRQn EXTI15_10_IRQn
 #define SR_SCK_Pin GPIO_PIN_0
 #define SR_SCK_GPIO_Port GPIOC
 #define SW4_Pin GPIO_PIN_1

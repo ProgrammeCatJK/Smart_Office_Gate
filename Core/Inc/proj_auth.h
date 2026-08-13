@@ -63,7 +63,7 @@ bool PN532_ReadResponse(uint8_t *buffer, uint8_t length);
 /*
  * Application functions
  */
-void Access_Check(int *dopen_pending_ptr, int *keypad_auth_ptr);
+void Access_Check(int *dopen_pending_ptr, int *keypad_auth_ptr, int *auth_count_ptr);
 bool UID_Match(uint8_t *uid, uint8_t *stored);
 
 #endif /* INC_PROJ_AUTH_H_ */

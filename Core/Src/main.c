@@ -78,15 +78,9 @@ TIM_HandleTypeDef htim6;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-enum door_state dstate = CLOSED;
 int buzzer_counter = 0;
 int unauth_flag = 0;
-
-uint32_t authTime;
 bool updateLCD = true;
-
-uint32_t auth_count = 0;
-int enter_count = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -115,6 +109,7 @@ int _write(int file, char *ptr, int len)
 /* Start alert. */
 static void unauth_alert_start(void) {
 	unauth_flag = 1;
+	buzzer_counter = 1;
 
 	TIM1->ARR = LOW_FREQ_ARR;
 	TIM1->CCR3 = LOW_FREQ_ARR / 20;
@@ -225,9 +220,11 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  enum door_state dstate = CLOSED;
   int dopen_pending = 0;
   uint32_t dopen_time;
   int keypad_auth = 0;
+  int auth_count = 0;
   int event_count = 0;
   while (1)
   {
@@ -237,9 +234,6 @@ int main(void)
 	  /* Door FSM. */
 	  if (dstate == CLOSED) {
 		  if (dopen_pending || event_count) {
-			  if (dopen_pending) {
-				  auth_count++;
-			  }
 			  dstate = IN_OPEN;
 			  Motor_SetPosition(OPEN_ForEntrance);
 		  } else if (s2 && !s1) {
@@ -282,9 +276,9 @@ int main(void)
 		  }
 	  }
 
-	  if (HAL_GPIO_ReadPin(GPIOA, SW2_Pin)) {
-		  unauth_alert_end();
-	  }
+//	  if (HAL_GPIO_ReadPin(GPIOA, SW2_Pin)) {
+//		  unauth_alert_end();
+//	  }
 
 	  if (unauth_flag && !buzzer_counter) {
 		  unauth_update_peripherals();
@@ -320,8 +314,8 @@ int main(void)
 			  pos = IN_BLOCK;
 		  }
 		  if (!s2) {
-			  enter_count++;
-			  if (auth_count < enter_count) {
+			  auth_count--;
+			  if (auth_count < 0) {
 				  unauth_alert_start();
 			  }
 			  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, 1);
@@ -380,10 +374,10 @@ int main(void)
 			  DisplayScreen(curr);
 			  updateLCD = false;
 		  }
-		  ReadKeypad(&head, &curr, &dopen_pending, &keypad_auth);
+		  ReadKeypad(&head, &curr, &dopen_pending, &keypad_auth, &auth_count, &dopen_time);
 	  } else {
 		  /* Authorisation check. */
-		  Access_Check(&dopen_pending, &keypad_auth);
+		  Access_Check(&dopen_pending, &keypad_auth, &auth_count);
 		  HAL_Delay(100);
 	  }
 //	  else if (authLevel == AUTH_DOOR) { /* Handled in door FSM now. */
@@ -930,6 +924,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LCD_E_GPIO_Port, &GPIO_InitStruct);
 
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
   /* USER CODE END MX_GPIO_Init_2 */
@@ -946,10 +944,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     	/* buzzer_counter is used to update peripherals (see unauth_update_peripherals)
     	 * once every 100 increments. That works out to 200 milliseconds.
     	 */
-    	if (unauth_flag) {
+    	if (buzzer_counter) {
     		buzzer_counter = (buzzer_counter + 1) % 100;
     	}
     }
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+	if (GPIO_Pin == GPIO_PIN_13) {
+		unauth_alert_end();
+	}
 }
 /* USER CODE END 4 */
 
